@@ -1,0 +1,27 @@
+[package]
+name = "psfu"
+version = "0.1.0"
+authors = ["Christian Krause <christian.krause@mailbox.org>"]
+description = "process fu"
+license = "GPL-3.0-or-later"
+readme = "README.md"
+documentation = "https://github.com/idiv-biodiversity/psfu"
+homepage = "https://github.com/idiv-biodiversity/psfu"
+repository = "https://github.com/idiv-biodiversity/psfu"
+keywords = ["process"]
+categories = ["command-line-utilities"]
+edition = "2018"
+
+[dependencies]
+anyhow = "^1"
+atty = "^0.2"
+exitfailure = "^0.5"
+failure = "^0.1"
+procfs = "^0.7"
+
+[dependencies.clap]
+version = "^2"
+features = ["wrap_help"]
+
+[profile.release]
+lto = true
