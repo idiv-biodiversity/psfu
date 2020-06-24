@@ -2,7 +2,7 @@ use anyhow::{Context, Result};
 use clap::ArgMatches;
 use procfs::process::Process;
 use std::collections::HashMap;
-use std::process::{Command, Stdio};
+use std::process::Command;
 
 use crate::config::Config;
 
@@ -180,12 +180,6 @@ fn backtrace_rec(
 
     let process = &tree.root;
 
-    let stderr = if verbose {
-        Stdio::inherit()
-    } else {
-        Stdio::null()
-    };
-
     let mut gdb_cmd = Command::new("gdb");
     gdb_cmd
         .args(&["-nh", "-nx"])
@@ -194,19 +188,31 @@ fn backtrace_rec(
         .arg(format!("{}", process.pid));
 
     let gdb = gdb_cmd
-        .stdout(Stdio::piped())
-        .stderr(stderr)
         .output()
         .with_context(|| format!("running {:?} failed", gdb_cmd))?;
 
-    let output = String::from_utf8_lossy(&gdb.stdout);
+    if gdb.status.success() {
+        let output = String::from_utf8_lossy(&gdb.stdout);
 
-    for line in output.lines() {
-        if !line.starts_with('#') && !verbose {
-            continue;
+        for line in output.lines() {
+            if !line.starts_with('#') && !verbose {
+                continue;
+            }
+
+            println!(
+                "{}{} {} {}",
+                prefix, process.pid, process.stat.comm, line
+            );
         }
+    } else {
+        let error = String::from_utf8_lossy(&gdb.stderr)
+            .lines()
+            .fold(String::from(""), |acc, line| acc + " " + line);
 
-        println!("{}{} {} {}", prefix, process.pid, process.stat.comm, line);
+        println!(
+            "{}{} {} [error]{}",
+            prefix, process.pid, process.stat.comm, error
+        );
     }
 
     for child in &tree.children {
