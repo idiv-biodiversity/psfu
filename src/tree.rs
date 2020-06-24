@@ -22,7 +22,7 @@ pub fn run(args: &ArgMatches) -> Result<()> {
             let pid: i32 = args.value_of("pid").unwrap().parse().unwrap();
             let tree = ProcessTree::new(pid, &config)?;
 
-            tree.print();
+            tree.print(config.arguments);
 
             Ok(())
         }
@@ -87,8 +87,8 @@ impl ProcessTree {
     }
 
     /// Prints this tree.
-    fn print(&self) {
-        print_rec(self, 0)
+    fn print(&self, arguments: bool) {
+        print_rec(self, 0, arguments)
     }
 
     /// Prints the tree of backtraces.
@@ -150,13 +150,23 @@ fn add_threads_rec(tree: &mut ProcessTree) -> Result<()> {
 }
 
 /// Prints the tree.
-fn print_rec(tree: &ProcessTree, indent: usize) {
+fn print_rec(tree: &ProcessTree, indent: usize, arguments: bool) {
     let prefix = " ".repeat(indent);
 
-    println!("{}{} {}", prefix, tree.root.pid, tree.root.stat.comm);
+    let process = &tree.root;
+
+    let command = if arguments {
+        process.cmdline().ok().map(|cmd| cmd.join(" "))
+    } else {
+        None
+    };
+
+    let command = command.as_ref().unwrap_or(&process.stat.comm);
+
+    println!("{}{} {}", prefix, process.pid, command);
 
     for child in &tree.children {
-        print_rec(child, indent + 2);
+        print_rec(child, indent + 2, arguments);
     }
 }
 
@@ -168,24 +178,26 @@ fn backtrace_rec(
 ) -> Result<()> {
     let prefix = " ".repeat(indent);
 
+    let process = &tree.root;
+
     let stderr = if verbose {
         Stdio::inherit()
     } else {
         Stdio::null()
     };
 
-    let mut command = Command::new("gdb");
-    command
+    let mut gdb_cmd = Command::new("gdb");
+    gdb_cmd
         .args(&["-nh", "-nx"])
         .args(&["-batch", "-ex", "bt"])
         .arg("-p")
-        .arg(format!("{}", tree.root.pid));
+        .arg(format!("{}", process.pid));
 
-    let gdb = command
+    let gdb = gdb_cmd
         .stdout(Stdio::piped())
         .stderr(stderr)
         .output()
-        .with_context(|| format!("running {:?} failed", command))?;
+        .with_context(|| format!("running {:?} failed", gdb_cmd))?;
 
     let output = String::from_utf8_lossy(&gdb.stdout);
 
@@ -194,10 +206,7 @@ fn backtrace_rec(
             continue;
         }
 
-        println!(
-            "{}{} {} {}",
-            prefix, tree.root.pid, tree.root.stat.comm, line
-        );
+        println!("{}{} {} {}", prefix, process.pid, process.stat.comm, line);
     }
 
     for child in &tree.children {

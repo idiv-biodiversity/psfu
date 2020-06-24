@@ -18,8 +18,14 @@ pub fn build() -> App<'static, 'static> {
         .required(true)
         .validator(is_pid);
 
+    let arguments = Arg::with_name("arguments")
+        .long("arguments")
+        .short("a")
+        .help("show arguments");
+
     let threads = Arg::with_name("threads")
         .long("threads")
+        .short("t")
         .help("include threads");
 
     let verbose = Arg::with_name("verbose")
@@ -42,6 +48,7 @@ pub fn build() -> App<'static, 'static> {
 
     let show = SubCommand::with_name("show")
         .arg(&pid)
+        .arg(&arguments)
         .arg(&threads)
         .about("show process tree")
         .help_short("?")
