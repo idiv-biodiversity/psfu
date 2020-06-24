@@ -10,7 +10,7 @@ use crate::config::Config;
 pub fn run(args: &ArgMatches) -> Result<()> {
     match args.subcommand() {
         ("backtrace", Some(args)) => {
-            let config = Config::from_args(&args);
+            let config = Config::from_args(args);
             let pid: i32 = args.value_of("pid").unwrap().parse().unwrap();
             let tree = ProcessTree::new(pid, &config)?;
 
@@ -18,7 +18,7 @@ pub fn run(args: &ArgMatches) -> Result<()> {
         }
 
         ("show", Some(args)) => {
-            let config = Config::from_args(&args);
+            let config = Config::from_args(args);
             let pid: i32 = args.value_of("pid").unwrap().parse().unwrap();
             let tree = ProcessTree::new(pid, &config)?;
 
@@ -44,18 +44,18 @@ struct ProcessTree {
 
 impl ProcessTree {
     /// Returns a new process tree with parent `pid` as its root.
-    fn new(parent: i32, config: &Config) -> Result<ProcessTree> {
-        ProcessTree::from_parent(parent, config.threads).with_context(|| {
+    fn new(parent: i32, config: &Config) -> Result<Self> {
+        Self::from_parent(parent, config.threads).with_context(|| {
             format!("generating tree for root process {} failed", parent)
         })
     }
 
     /// Returns a new process tree with parent `pid` as its root.
-    fn from_parent(pid: i32, threads: bool) -> Result<ProcessTree> {
+    fn from_parent(pid: i32, threads: bool) -> Result<Self> {
         let root = Process::new(pid)
             .with_context(|| format!("reading process {} failed", pid))?;
 
-        let mut tree = ProcessTree::leaf(root);
+        let mut tree = Self::leaf(root);
 
         let mut procs: HashMap<i32, Vec<Process>> = HashMap::new();
 
@@ -63,7 +63,7 @@ impl ProcessTree {
             .context("reading all processes failed")?
         {
             let children =
-                procs.entry(process.stat.ppid).or_insert_with(|| vec![]);
+                procs.entry(process.stat.ppid).or_insert_with(Vec::new);
 
             children.push(process);
         }
@@ -79,8 +79,8 @@ impl ProcessTree {
     }
 
     /// Returns a new process tree without children.
-    fn leaf(process: Process) -> ProcessTree {
-        ProcessTree {
+    const fn leaf(process: Process) -> Self {
+        Self {
             root: process,
             children: vec![],
         }
@@ -105,7 +105,7 @@ fn convert_rec(
     if let Some(children) = procs.remove(&tree.root.pid) {
         tree.children = children.into_iter().map(ProcessTree::leaf).collect();
 
-        for child in tree.children.iter_mut() {
+        for child in &mut tree.children {
             convert_rec(procs, child)
         }
     }
@@ -114,7 +114,7 @@ fn convert_rec(
 /// Recursively adds threads to the children of their respective parent
 /// processes in the tree.
 fn add_threads_rec(tree: &mut ProcessTree) -> Result<()> {
-    for child in tree.children.iter_mut() {
+    for child in &mut tree.children {
         add_threads_rec(child).with_context(|| {
             format!(
                 "adding threads for child process {} failed",

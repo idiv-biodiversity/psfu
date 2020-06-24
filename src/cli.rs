@@ -77,6 +77,7 @@ pub fn build() -> App<'static, 'static> {
         .version_message("show version")
 }
 
+#[allow(clippy::needless_pass_by_value)]
 fn is_pid(s: String) -> Result<(), String> {
     s.parse::<u64>()
         .map_err(|e| format!("{} is not a process ID: {}", s, e))

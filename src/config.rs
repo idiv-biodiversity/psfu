@@ -7,8 +7,8 @@ pub struct Config {
 }
 
 impl Config {
-    pub fn from_args(args: &ArgMatches) -> Config {
-        Config {
+    pub fn from_args(args: &ArgMatches) -> Self {
+        Self {
             threads: args.is_present("threads"),
             verbose: args.is_present("verbose"),
         }
