@@ -23,5 +23,9 @@ procfs = "^0.7"
 version = "^2"
 features = ["wrap_help"]
 
+[dev-dependencies]
+assert_cmd = "^1"
+predicates = "^1"
+
 [profile.release]
 lto = true
