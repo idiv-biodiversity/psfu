@@ -14,14 +14,20 @@ pub fn build() -> App<'static, 'static> {
     // ------------------------------------------------------------------------
 
     let pid = Arg::with_name("pid")
-        .help("process ID")
-        .required(true)
+        .help("process IDs")
+        .multiple(true)
+        .required(atty::is(Stream::Stdin))
         .validator(is_pid);
 
     let arguments = Arg::with_name("arguments")
         .long("arguments")
         .short("a")
         .help("show arguments");
+
+    let cpuset = Arg::with_name("cpuset")
+        .help("cpuset")
+        .required(true)
+        .validator(cpuset);
 
     let threads = Arg::with_name("threads")
         .long("threads")
@@ -34,23 +40,63 @@ pub fn build() -> App<'static, 'static> {
         .hidden_short_help(true);
 
     // ------------------------------------------------------------------------
-    // tree commands
+    // show commands
     // ------------------------------------------------------------------------
+
+    let plain = SubCommand::with_name("plain")
+        .arg(&pid)
+        .arg(&arguments)
+        .arg(&threads)
+        .about("show process tree")
+        .help_short("?")
+        .help_message("show this help output");
+
+    let affinity_s = SubCommand::with_name("affinity")
+        .arg(&pid)
+        .arg(&threads)
+        .about("show process tree with affinity (cpuset)")
+        .help_short("?")
+        .help_message("show this help output");
 
     let backtrace = SubCommand::with_name("backtrace")
         .alias("bt")
         .arg(&pid)
         .arg(&threads)
         .arg(&verbose)
-        .about("run backtrace over process tree")
+        .about("show process tree with backtrace")
+        .help_short("?")
+        .help_message("show this help output");
+
+    // ------------------------------------------------------------------------
+    // modify commands
+    // ------------------------------------------------------------------------
+
+    let affinity_m = SubCommand::with_name("affinity")
+        .arg(&cpuset)
+        .arg(&pid)
+        .arg(&threads)
+        .arg(&verbose)
+        .about("modify process tree affinity (cpuset)")
+        .help_short("?")
+        .help_message("show this help output");
+
+    // ------------------------------------------------------------------------
+    // tree commands
+    // ------------------------------------------------------------------------
+
+    let modify = SubCommand::with_name("modify")
+        .about("modify processes")
+        .setting(AppSettings::SubcommandRequiredElseHelp)
+        .subcommand(affinity_m)
         .help_short("?")
         .help_message("show this help output");
 
     let show = SubCommand::with_name("show")
-        .arg(&pid)
-        .arg(&arguments)
-        .arg(&threads)
-        .about("show process tree")
+        .about("show processes")
+        .setting(AppSettings::SubcommandRequiredElseHelp)
+        .subcommand(affinity_s)
+        .subcommand(backtrace)
+        .subcommand(plain)
         .help_short("?")
         .help_message("show this help output");
 
@@ -61,7 +107,7 @@ pub fn build() -> App<'static, 'static> {
     let tree = SubCommand::with_name("tree")
         .about("process tree commands")
         .setting(AppSettings::SubcommandRequiredElseHelp)
-        .subcommand(backtrace)
+        .subcommand(modify)
         .subcommand(show)
         .help_short("?")
         .help_message("show this help output");
@@ -82,6 +128,15 @@ pub fn build() -> App<'static, 'static> {
         .help_short("?")
         .help_message("show this help output")
         .version_message("show version")
+}
+
+#[allow(clippy::needless_pass_by_value)]
+fn cpuset(s: String) -> Result<(), String> {
+    if s == "free" || s.parse::<u64>().is_ok() {
+        Ok(())
+    } else {
+        Err(format!("not a positive number: {}", s))
+    }
 }
 
 #[allow(clippy::needless_pass_by_value)]

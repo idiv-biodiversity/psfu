@@ -1,6 +1,7 @@
 #![deny(clippy::all)]
 #![warn(clippy::pedantic, clippy::nursery, clippy::cargo)]
 
+mod affinity;
 mod cli;
 mod config;
 mod tree;

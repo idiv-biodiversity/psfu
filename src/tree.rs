@@ -1,36 +1,234 @@
-use anyhow::{Context, Result};
-use clap::ArgMatches;
-use procfs::process::Process;
 use std::collections::HashMap;
+use std::io::{self, BufRead};
 use std::process::Command;
 
+use anyhow::{anyhow, Context, Result};
+use clap::{crate_name, ArgMatches};
+use procfs::process::Process;
+
+use crate::affinity;
 use crate::config::Config;
+
+// ----------------------------------------------------------------------------
+// CLI runner
+// ----------------------------------------------------------------------------
 
 /// Runs **tree** subcommand.
 pub fn run(args: &ArgMatches) -> Result<()> {
     match args.subcommand() {
-        ("backtrace", Some(args)) => {
-            let config = Config::from_args(args);
-            let pid: i32 = args.value_of("pid").unwrap().parse().unwrap();
-            let tree = ProcessTree::new(pid, &config)?;
-
-            tree.print_backtrace(config.verbose)
-        }
-
-        ("show", Some(args)) => {
-            let config = Config::from_args(args);
-            let pid: i32 = args.value_of("pid").unwrap().parse().unwrap();
-            let tree = ProcessTree::new(pid, &config)?;
-
-            tree.print(config.arguments);
-
-            Ok(())
-        }
+        ("show", Some(args)) => run_show(args),
+        ("modify", Some(args)) => run_modify(args),
 
         // unreachable because subcommand is required
         _ => unreachable!(),
     }
 }
+
+/// Runs **tree modify** subcommand.
+fn run_modify(args: &ArgMatches) -> Result<()> {
+    match args.subcommand() {
+        ("affinity", Some(args)) => run_modify_affinity(args),
+
+        // unreachable because subcommand is required
+        _ => unreachable!(),
+    }
+}
+
+/// Runs **tree show** subcommand.
+fn run_show(args: &ArgMatches) -> Result<()> {
+    match args.subcommand() {
+        ("affinity", Some(args)) => run_show_affinity(args),
+        ("backtrace", Some(args)) => run_show_backtrace(args),
+        ("plain", Some(args)) => run_show_plain(args),
+
+        // unreachable because subcommand is required
+        _ => unreachable!(),
+    }
+}
+
+/// Runs **tree show plain** subcommand.
+fn run_show_plain(args: &ArgMatches) -> Result<()> {
+    let config = Config::from_args(args);
+
+    let payload = |process: &Process| {
+        let command = if config.arguments {
+            process.cmdline().ok().map(|cmd| cmd.join(" "))
+        } else {
+            None
+        };
+
+        let command = command.as_ref().unwrap_or(&process.stat.comm);
+
+        Ok(vec![format!("{} {}", process.pid, command)])
+    };
+
+    match args.values_of("pid") {
+        Some(pids) => {
+            for pid in pids {
+                let pid: i32 = pid.parse().unwrap();
+                let tree = ProcessTree::new(pid, &config)?;
+                tree.show(&payload, 0);
+            }
+        }
+
+        None => {
+            for line in io::stdin().lock().lines() {
+                let pid: i32 = line?.parse().unwrap();
+                let tree = ProcessTree::new(pid, &config)?;
+                tree.show(&payload, 0);
+            }
+        }
+    }
+
+    Ok(())
+}
+
+/// Runs **tree show affinity** subcommand.
+fn run_show_affinity(args: &ArgMatches) -> Result<()> {
+    let config = Config::from_args(args);
+
+    let payload = |process: &Process| {
+        let command = &process.stat.comm;
+
+        affinity::get(process.pid).map(|affinity| {
+            vec![format!("{} {} {:?}", process.pid, command, affinity)]
+        })
+    };
+
+    match args.values_of("pid") {
+        Some(pids) => {
+            for pid in pids {
+                let pid: i32 = pid.parse().unwrap();
+                let tree = ProcessTree::new(pid, &config)?;
+                tree.show(&payload, 0);
+            }
+        }
+
+        None => {
+            for line in io::stdin().lock().lines() {
+                let pid: i32 = line?.parse().unwrap();
+                let tree = ProcessTree::new(pid, &config)?;
+                tree.show(&payload, 0);
+            }
+        }
+    }
+
+    Ok(())
+}
+
+/// Runs **tree show backtrace** subcommand.
+fn run_show_backtrace(args: &ArgMatches) -> Result<()> {
+    let config = Config::from_args(args);
+
+    let payload = |process: &Process| {
+        let pid = process.pid;
+        let comm = &process.stat.comm;
+
+        let mut gdb_cmd = Command::new("gdb");
+        gdb_cmd
+            // no ~/.gdbinit and no .gdbinit
+            .args(&["-nh", "-nx"])
+            // run backtrace in batch mode
+            .args(&["-batch", "-ex", "bt"])
+            // use this pid
+            .arg("-p")
+            .arg(format!("{}", process.pid));
+
+        match gdb_cmd.output() {
+            Ok(gdb) => {
+                if gdb.status.success() {
+                    let output = String::from_utf8_lossy(&gdb.stdout);
+
+                    let mut payload = vec![];
+
+                    for line in output.lines() {
+                        if !line.starts_with('#') && !config.verbose {
+                            continue;
+                        }
+
+                        payload.push(format!("{} {} {}", pid, comm, line));
+                    }
+
+                    Ok(payload)
+                } else {
+                    let error = String::from_utf8_lossy(&gdb.stderr)
+                        .lines()
+                        .fold(String::from(""), |acc, line| acc + " " + line);
+
+                    Err(anyhow!("{} {} {}", pid, comm, error))
+                }
+            }
+
+            Err(error) => {
+                Err(anyhow!("{} {} failed to run gdb: {}", pid, comm, error))
+            }
+        }
+    };
+
+    match args.values_of("pid") {
+        Some(pids) => {
+            for pid in pids {
+                let pid: i32 = pid.parse().unwrap();
+                let tree = ProcessTree::new(pid, &config)?;
+                tree.show(&payload, 0);
+            }
+        }
+
+        None => {
+            for line in io::stdin().lock().lines() {
+                let pid: i32 = line?.parse().unwrap();
+                let tree = ProcessTree::new(pid, &config)?;
+                tree.show(&payload, 0);
+            }
+        }
+    }
+
+    Ok(())
+}
+
+/// Runs **tree modify affinity** subcommand.
+fn run_modify_affinity(args: &ArgMatches) -> Result<()> {
+    let config = Config::from_args(args);
+
+    let cpuset: Vec<usize> = match args.value_of("cpuset").unwrap() {
+        "free" => (0..libc::CPU_SETSIZE as usize).collect(),
+        cpuset => vec![cpuset.parse().unwrap()],
+    };
+
+    let f = |process: &Process| {
+        if config.verbose {
+            let pid = &process.pid;
+            let cmd = &process.stat.comm;
+            eprintln!("modifying process {} {}", pid, cmd);
+        }
+
+        affinity::set(process.pid, &cpuset)
+    };
+
+    match args.values_of("pid") {
+        Some(pids) => {
+            for pid in pids {
+                let pid: i32 = pid.parse().unwrap();
+                let tree = ProcessTree::new(pid, &config)?;
+                tree.modify(&f);
+            }
+        }
+
+        None => {
+            for line in io::stdin().lock().lines() {
+                let pid: i32 = line?.parse().unwrap();
+                let tree = ProcessTree::new(pid, &config)?;
+                tree.modify(&f);
+            }
+        }
+    }
+
+    Ok(())
+}
+
+// ----------------------------------------------------------------------------
+// process tree data structure
+// ----------------------------------------------------------------------------
 
 /// A process tree.
 #[derive(Clone, Debug)]
@@ -68,11 +266,10 @@ impl ProcessTree {
             children.push(process);
         }
 
-        convert_rec(&mut procs, &mut tree);
+        convert(&mut procs, &mut tree);
 
         if threads {
-            add_threads_rec(&mut tree)
-                .context("adding threads to tree failed")?
+            add_threads(&mut tree).context("adding threads to tree failed")?
         }
 
         Ok(tree)
@@ -86,36 +283,65 @@ impl ProcessTree {
         }
     }
 
-    /// Prints this tree.
-    fn print(&self, arguments: bool) {
-        print_rec(self, 0, arguments)
+    /// Recursively modify the process tree.
+    fn modify<F>(&self, f: &F)
+    where
+        F: Fn(&Process) -> Result<()>,
+    {
+        if let Err(e) = f(&self.root) {
+            eprintln!("{}: error: {}", crate_name!(), e);
+        }
+
+        for child in &self.children {
+            child.modify(f)
+        }
     }
 
-    /// Prints the tree of backtraces.
-    fn print_backtrace(&self, verbose: bool) -> Result<()> {
-        backtrace_rec(self, 0, verbose).context("tracing failed")
+    /// Recursively show the process tree.
+    fn show<F>(&self, payload: &F, indent: usize)
+    where
+        F: Fn(&Process) -> Result<Vec<String>>,
+    {
+        let prefix = " ".repeat(indent);
+
+        match payload(&self.root) {
+            Ok(payload) => {
+                for p in payload {
+                    println!("{}{}", prefix, p);
+                }
+            }
+
+            Err(e) => {
+                eprintln!("{}{}", prefix, e);
+            }
+        }
+
+        for child in &self.children {
+            child.show(payload, indent + 2);
+        }
     }
 }
 
+// ----------------------------------------------------------------------------
+// tree recursion helpers
+// ----------------------------------------------------------------------------
+
 /// Recursively moves children from procs into tree.
-fn convert_rec(
-    procs: &mut HashMap<i32, Vec<Process>>,
-    tree: &mut ProcessTree,
-) {
+fn convert(procs: &mut HashMap<i32, Vec<Process>>, tree: &mut ProcessTree) {
     if let Some(children) = procs.remove(&tree.root.pid) {
         tree.children = children.into_iter().map(ProcessTree::leaf).collect();
 
         for child in &mut tree.children {
-            convert_rec(procs, child)
+            convert(procs, child)
         }
     }
 }
 
 /// Recursively adds threads to the children of their respective parent
 /// processes in the tree.
-fn add_threads_rec(tree: &mut ProcessTree) -> Result<()> {
+fn add_threads(tree: &mut ProcessTree) -> Result<()> {
     for child in &mut tree.children {
-        add_threads_rec(child).with_context(|| {
+        add_threads(child).with_context(|| {
             format!(
                 "adding threads for child process {} failed",
                 child.root.pid
@@ -143,88 +369,6 @@ fn add_threads_rec(tree: &mut ProcessTree) -> Result<()> {
 
                 tree.children.push(task);
             }
-        }
-    }
-
-    Ok(())
-}
-
-/// Prints the tree.
-fn print_rec(tree: &ProcessTree, indent: usize, arguments: bool) {
-    let prefix = " ".repeat(indent);
-
-    let process = &tree.root;
-
-    let command = if arguments {
-        process.cmdline().ok().map(|cmd| cmd.join(" "))
-    } else {
-        None
-    };
-
-    let command = command.as_ref().unwrap_or(&process.stat.comm);
-
-    println!("{}{} {}", prefix, process.pid, command);
-
-    for child in &tree.children {
-        print_rec(child, indent + 2, arguments);
-    }
-}
-
-/// Prints the tree including backtraces.
-fn backtrace_rec(
-    tree: &ProcessTree,
-    indent: usize,
-    verbose: bool,
-) -> Result<()> {
-    let prefix = " ".repeat(indent);
-
-    let process = &tree.root;
-
-    let mut gdb_cmd = Command::new("gdb");
-    gdb_cmd
-        .args(&["-nh", "-nx"])
-        .args(&["-batch", "-ex", "bt"])
-        .arg("-p")
-        .arg(format!("{}", process.pid));
-
-    let gdb = gdb_cmd
-        .output()
-        .with_context(|| format!("running {:?} failed", gdb_cmd))?;
-
-    if gdb.status.success() {
-        let output = String::from_utf8_lossy(&gdb.stdout);
-
-        for line in output.lines() {
-            if !line.starts_with('#') && !verbose {
-                continue;
-            }
-
-            println!(
-                "{}{} {} {}",
-                prefix, process.pid, process.stat.comm, line
-            );
-        }
-    } else {
-        let error = String::from_utf8_lossy(&gdb.stderr)
-            .lines()
-            .fold(String::from(""), |acc, line| acc + " " + line);
-
-        println!(
-            "{}{} {} [error]{}",
-            prefix, process.pid, process.stat.comm, error
-        );
-    }
-
-    for child in &tree.children {
-        let result = backtrace_rec(child, indent + 2, verbose);
-
-        if let Err(e) = result {
-            let prefix = " ".repeat(indent + 2);
-
-            println!(
-                "{}{} {} [error] {:#}",
-                prefix, child.root.pid, child.root.stat.comm, e
-            );
         }
     }
 
