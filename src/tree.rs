@@ -131,7 +131,7 @@ fn run_show_backtrace(args: &ArgMatches) -> Result<()> {
             .args(&["-batch", "-ex", "bt"])
             // use this pid
             .arg("-p")
-            .arg(format!("{}", process.pid));
+            .arg(process.pid.to_string());
 
         match gdb_cmd.output() {
             Ok(gdb) => {
@@ -400,7 +400,7 @@ impl<B: BufRead> Iterator for PIDerator<B> {
             Some(Ok(line)) => match crate::pid::validate(&line) {
                 Ok(pid) => Some(Some(pid)),
                 Err(e) => {
-                    log::error(format!("{}", e));
+                    log::error(e);
                     Some(None)
                 }
             },
