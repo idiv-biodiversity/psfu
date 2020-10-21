@@ -4,6 +4,8 @@
 mod affinity;
 mod cli;
 mod config;
+mod log;
+mod pid;
 mod tree;
 
 use anyhow::Result;

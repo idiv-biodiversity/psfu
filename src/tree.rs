@@ -3,11 +3,12 @@ use std::io::{self, BufRead};
 use std::process::Command;
 
 use anyhow::{anyhow, Context, Result};
-use clap::{crate_name, ArgMatches};
+use clap::ArgMatches;
 use procfs::process::Process;
 
 use crate::affinity;
 use crate::config::Config;
+use crate::log;
 
 // ----------------------------------------------------------------------------
 // CLI runner
@@ -72,8 +73,7 @@ fn run_show_plain(args: &ArgMatches) -> Result<()> {
         }
 
         None => {
-            for line in io::stdin().lock().lines() {
-                let pid: i32 = line?.parse().unwrap();
+            for pid in piderator(io::stdin().lock()) {
                 let tree = ProcessTree::new(pid, &config)?;
                 tree.show(&payload, 0);
             }
@@ -105,8 +105,7 @@ fn run_show_affinity(args: &ArgMatches) -> Result<()> {
         }
 
         None => {
-            for line in io::stdin().lock().lines() {
-                let pid: i32 = line?.parse().unwrap();
+            for pid in piderator(io::stdin().lock()) {
                 let tree = ProcessTree::new(pid, &config)?;
                 tree.show(&payload, 0);
             }
@@ -175,8 +174,7 @@ fn run_show_backtrace(args: &ArgMatches) -> Result<()> {
         }
 
         None => {
-            for line in io::stdin().lock().lines() {
-                let pid: i32 = line?.parse().unwrap();
+            for pid in piderator(io::stdin().lock()) {
                 let tree = ProcessTree::new(pid, &config)?;
                 tree.show(&payload, 0);
             }
@@ -215,8 +213,7 @@ fn run_modify_affinity(args: &ArgMatches) -> Result<()> {
         }
 
         None => {
-            for line in io::stdin().lock().lines() {
-                let pid: i32 = line?.parse().unwrap();
+            for pid in piderator(io::stdin().lock()) {
                 let tree = ProcessTree::new(pid, &config)?;
                 tree.modify(&f);
             }
@@ -289,7 +286,7 @@ impl ProcessTree {
         F: Fn(&Process) -> Result<()>,
     {
         if let Err(e) = f(&self.root) {
-            eprintln!("{}: error: {}", crate_name!(), e);
+            log::error(format!("{}", e));
         }
 
         for child in &self.children {
@@ -373,4 +370,47 @@ fn add_threads(tree: &mut ProcessTree) -> Result<()> {
     }
 
     Ok(())
+}
+
+// ----------------------------------------------------------------------------
+// utility Iterator for reading PIDs from STDIN
+// ----------------------------------------------------------------------------
+
+fn piderator<'a>(s: io::StdinLock<'a>) -> impl Iterator<Item = i32> + 'a {
+    PIDerator::new(s.lines()).flatten()
+}
+
+struct PIDerator<B> {
+    underlying: io::Lines<B>,
+}
+
+impl<B: BufRead> PIDerator<B> {
+    fn new(b: io::Lines<B>) -> Self {
+        Self { underlying: b }
+    }
+}
+
+impl<B: BufRead> Iterator for PIDerator<B> {
+    type Item = Option<i32>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self.underlying.next() {
+            Some(Ok(line)) if line.trim().is_empty() => Some(None),
+
+            Some(Ok(line)) => match crate::pid::validate(&line) {
+                Ok(pid) => Some(Some(pid)),
+                Err(e) => {
+                    log::error(format!("{}", e));
+                    Some(None)
+                }
+            },
+
+            Some(Err(e)) => {
+                log::error(format!("broken line: {}", e));
+                Some(None)
+            }
+
+            None => None,
+        }
+    }
 }

@@ -1,20 +1,26 @@
 mod util;
 
+use std::error::Error;
+
 use assert_cmd::prelude::*;
 use predicates::prelude::*;
-use std::error::Error;
 
 #[test]
 fn pid() -> Result<(), Box<dyn Error>> {
     let mut cmd = util::bin(&["tree", "show", "plain", "x"])?;
     cmd.assert()
         .failure()
-        .stderr(predicate::str::contains("not a process ID"));
+        .stderr(predicate::str::contains("error: Invalid value"));
+
+    let mut cmd = util::bin(&["tree", "show", "plain", "0"])?;
+    cmd.assert()
+        .failure()
+        .stderr(predicate::str::contains("error: Invalid value"));
 
     let mut cmd = util::bin(&["tree", "show", "plain", "1"])?;
     cmd.assert()
         .success()
-        .stderr(predicate::str::contains("not a process ID").not());
+        .stderr(predicate::str::contains("error: Invalid value").not());
 
     let pid_max = std::fs::read_to_string("/proc/sys/kernel/pid_max")?
         .trim()
@@ -24,7 +30,8 @@ fn pid() -> Result<(), Box<dyn Error>> {
 
     let mut cmd = util::bin(&["tree", "show", "plain", &too_high])?;
     cmd.assert()
-        .stderr(predicate::str::contains("higher than pid_max"));
+        .failure()
+        .stderr(predicate::str::contains("error: Invalid value"));
 
     Ok(())
 }

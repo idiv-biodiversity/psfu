@@ -27,7 +27,7 @@ pub fn build() -> App<'static, 'static> {
     let cpuset = Arg::with_name("cpuset")
         .help("cpuset")
         .required(true)
-        .validator(cpuset);
+        .validator(is_cpuset);
 
     let threads = Arg::with_name("threads")
         .long("threads")
@@ -131,34 +131,15 @@ pub fn build() -> App<'static, 'static> {
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn cpuset(s: String) -> Result<(), String> {
+fn is_cpuset(s: String) -> Result<(), String> {
     if s == "free" || s.parse::<u64>().is_ok() {
         Ok(())
     } else {
-        Err(format!("not a positive number: {}", s))
+        Err(format!("invalid cpuset: {:?}", s))
     }
 }
 
 #[allow(clippy::needless_pass_by_value)]
 fn is_pid(s: String) -> Result<(), String> {
-    s.parse::<u64>()
-        .map_err(|e| format!("{} is not a process ID: {}", s, e))
-        .and_then(check_pid_max)
-}
-
-fn check_pid_max(pid: u64) -> Result<(), String> {
-    let pid_max = std::fs::read_to_string("/proc/sys/kernel/pid_max")
-        .map_err(|e| format!("reading pid_max: {}", e))?
-        .trim()
-        .parse::<u64>()
-        .map_err(|e| format!("parsing pid_max: {}", e))?;
-
-    if pid <= pid_max {
-        Ok(())
-    } else {
-        Err(format!(
-            "process ID {} is higher than pid_max {}",
-            pid, pid_max
-        ))
-    }
+    crate::pid::validate(s).map(|_| ())
 }
