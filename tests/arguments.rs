@@ -22,10 +22,7 @@ fn pid() -> Result<(), Box<dyn Error>> {
         .success()
         .stderr(predicate::str::contains("error: Invalid value").not());
 
-    let pid_max = std::fs::read_to_string("/proc/sys/kernel/pid_max")?
-        .trim()
-        .parse::<u64>()?;
-
+    let pid_max = procfs::sys::kernel::pid_max()?;
     let too_high = format!("{}", pid_max + 1);
 
     let mut cmd = util::bin(&["tree", "show", "plain", &too_high])?;
