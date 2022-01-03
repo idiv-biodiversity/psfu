@@ -13,21 +13,21 @@ categories = ["command-line-utilities"]
 edition = "2018"
 
 [dependencies]
-anyhow = "^1"
-atty = "^0.2"
-errno = "^0.2"
-exitfailure = "^0.5"
-failure = "^0.1"
-libc = "^0.2"
-procfs = "^0.8"
+anyhow = "1"
+atty = "0.2"
+errno = "0.2"
+exitfailure = "0.5"
+failure = "0.1"
+libc = "0.2"
+procfs = "0.12"
 
 [dependencies.clap]
-version = "^2"
+version = "2"
 features = ["wrap_help"]
 
 [dev-dependencies]
-assert_cmd = "^1"
-predicates = "^1"
+assert_cmd = "2"
+predicates = "2"
 
 [profile.release]
 lto = true
