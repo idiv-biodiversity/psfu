@@ -3,7 +3,6 @@
 
 mod affinity;
 mod cli;
-mod config;
 mod log;
 mod pid;
 mod tree;
@@ -14,7 +13,7 @@ fn main() -> Result<()> {
     let args = cli::build().get_matches();
 
     match args.subcommand() {
-        ("tree", Some(args)) => tree::run(args),
+        Some(("tree", args)) => tree::run(args),
 
         // unreachable because subcommand is required
         _ => unreachable!(),

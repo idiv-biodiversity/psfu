@@ -7,7 +7,6 @@ use clap::ArgMatches;
 use procfs::process::Process;
 
 use crate::affinity;
-use crate::config::Config;
 use crate::log;
 
 // ----------------------------------------------------------------------------
@@ -17,8 +16,8 @@ use crate::log;
 /// Runs **tree** subcommand.
 pub fn run(args: &ArgMatches) -> Result<()> {
     match args.subcommand() {
-        ("show", Some(args)) => run_show(args),
-        ("modify", Some(args)) => run_modify(args),
+        Some(("show", args)) => run_show(args),
+        Some(("modify", args)) => run_modify(args),
 
         // unreachable because subcommand is required
         _ => unreachable!(),
@@ -28,7 +27,7 @@ pub fn run(args: &ArgMatches) -> Result<()> {
 /// Runs **tree modify** subcommand.
 fn run_modify(args: &ArgMatches) -> Result<()> {
     match args.subcommand() {
-        ("affinity", Some(args)) => run_modify_affinity(args),
+        Some(("affinity", args)) => run_modify_affinity(args),
 
         // unreachable because subcommand is required
         _ => unreachable!(),
@@ -38,9 +37,9 @@ fn run_modify(args: &ArgMatches) -> Result<()> {
 /// Runs **tree show** subcommand.
 fn run_show(args: &ArgMatches) -> Result<()> {
     match args.subcommand() {
-        ("affinity", Some(args)) => run_show_affinity(args),
-        ("backtrace", Some(args)) => run_show_backtrace(args),
-        ("plain", Some(args)) => run_show_plain(args),
+        Some(("affinity", args)) => run_show_affinity(args),
+        Some(("backtrace", args)) => run_show_backtrace(args),
+        Some(("plain", args)) => run_show_plain(args),
 
         // unreachable because subcommand is required
         _ => unreachable!(),
@@ -49,10 +48,11 @@ fn run_show(args: &ArgMatches) -> Result<()> {
 
 /// Runs **tree show plain** subcommand.
 fn run_show_plain(args: &ArgMatches) -> Result<()> {
-    let config = Config::from_args(args);
+    let arguments = args.is_present("arguments");
+    let threads = args.is_present("threads");
 
     let payload = |process: &Process| {
-        let command = if config.arguments {
+        let command = if arguments {
             process.cmdline().ok().map(|cmd| cmd.join(" "))
         } else {
             None
@@ -67,14 +67,14 @@ fn run_show_plain(args: &ArgMatches) -> Result<()> {
         Some(pids) => {
             for pid in pids {
                 let pid: i32 = pid.parse().unwrap();
-                let tree = ProcessTree::new(pid, &config)?;
+                let tree = ProcessTree::new(pid, threads)?;
                 tree.show(&payload, 0);
             }
         }
 
         None => {
             for pid in piderator(io::stdin().lock()) {
-                let tree = ProcessTree::new(pid, &config)?;
+                let tree = ProcessTree::new(pid, threads)?;
                 tree.show(&payload, 0);
             }
         }
@@ -85,7 +85,7 @@ fn run_show_plain(args: &ArgMatches) -> Result<()> {
 
 /// Runs **tree show affinity** subcommand.
 fn run_show_affinity(args: &ArgMatches) -> Result<()> {
-    let config = Config::from_args(args);
+    let threads = args.is_present("threads");
 
     let payload = |process: &Process| {
         let command = &process.stat.comm;
@@ -99,14 +99,14 @@ fn run_show_affinity(args: &ArgMatches) -> Result<()> {
         Some(pids) => {
             for pid in pids {
                 let pid: i32 = pid.parse().unwrap();
-                let tree = ProcessTree::new(pid, &config)?;
+                let tree = ProcessTree::new(pid, threads)?;
                 tree.show(&payload, 0);
             }
         }
 
         None => {
             for pid in piderator(io::stdin().lock()) {
-                let tree = ProcessTree::new(pid, &config)?;
+                let tree = ProcessTree::new(pid, threads)?;
                 tree.show(&payload, 0);
             }
         }
@@ -117,7 +117,8 @@ fn run_show_affinity(args: &ArgMatches) -> Result<()> {
 
 /// Runs **tree show backtrace** subcommand.
 fn run_show_backtrace(args: &ArgMatches) -> Result<()> {
-    let config = Config::from_args(args);
+    let threads = args.is_present("threads");
+    let verbose = args.is_present("verbose");
 
     let payload = |process: &Process| {
         let pid = process.pid;
@@ -141,7 +142,7 @@ fn run_show_backtrace(args: &ArgMatches) -> Result<()> {
                     let mut payload = vec![];
 
                     for line in output.lines() {
-                        if !line.starts_with('#') && !config.verbose {
+                        if !line.starts_with('#') && !verbose {
                             continue;
                         }
 
@@ -168,14 +169,14 @@ fn run_show_backtrace(args: &ArgMatches) -> Result<()> {
         Some(pids) => {
             for pid in pids {
                 let pid: i32 = pid.parse().unwrap();
-                let tree = ProcessTree::new(pid, &config)?;
+                let tree = ProcessTree::new(pid, threads)?;
                 tree.show(&payload, 0);
             }
         }
 
         None => {
             for pid in piderator(io::stdin().lock()) {
-                let tree = ProcessTree::new(pid, &config)?;
+                let tree = ProcessTree::new(pid, threads)?;
                 tree.show(&payload, 0);
             }
         }
@@ -186,7 +187,8 @@ fn run_show_backtrace(args: &ArgMatches) -> Result<()> {
 
 /// Runs **tree modify affinity** subcommand.
 fn run_modify_affinity(args: &ArgMatches) -> Result<()> {
-    let config = Config::from_args(args);
+    let threads = args.is_present("threads");
+    let verbose = args.is_present("verbose");
 
     let cpuset: Vec<usize> = match args.value_of("cpuset").unwrap() {
         "free" => (0..libc::CPU_SETSIZE as usize).collect(),
@@ -194,7 +196,7 @@ fn run_modify_affinity(args: &ArgMatches) -> Result<()> {
     };
 
     let f = |process: &Process| {
-        if config.verbose {
+        if verbose {
             let pid = &process.pid;
             let cmd = &process.stat.comm;
             eprintln!("modifying process {} {}", pid, cmd);
@@ -207,14 +209,14 @@ fn run_modify_affinity(args: &ArgMatches) -> Result<()> {
         Some(pids) => {
             for pid in pids {
                 let pid: i32 = pid.parse().unwrap();
-                let tree = ProcessTree::new(pid, &config)?;
+                let tree = ProcessTree::new(pid, threads)?;
                 tree.modify(&f);
             }
         }
 
         None => {
             for pid in piderator(io::stdin().lock()) {
-                let tree = ProcessTree::new(pid, &config)?;
+                let tree = ProcessTree::new(pid, threads)?;
                 tree.modify(&f);
             }
         }
@@ -239,16 +241,10 @@ struct ProcessTree {
 
 impl ProcessTree {
     /// Returns a new process tree with parent `pid` as its root.
-    fn new(parent: i32, config: &Config) -> Result<Self> {
-        Self::from_parent(parent, config.threads).with_context(|| {
-            format!("generating tree for root process {} failed", parent)
-        })
-    }
-
-    /// Returns a new process tree with parent `pid` as its root.
-    fn from_parent(pid: i32, threads: bool) -> Result<Self> {
-        let root = Process::new(pid)
-            .with_context(|| format!("reading process {} failed", pid))?;
+    fn new(parent_pid: i32, threads: bool) -> Result<Self> {
+        let root = Process::new(parent_pid).with_context(|| {
+            format!("reading process {} failed", parent_pid)
+        })?;
 
         let mut tree = Self::leaf(root);
 
