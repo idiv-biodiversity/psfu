@@ -262,7 +262,7 @@ impl ProcessTree {
         convert(&mut procs, &mut tree);
 
         if threads {
-            add_threads(&mut tree).context("adding threads to tree failed")?
+            add_threads(&mut tree).context("adding threads to tree failed")?;
         }
 
         Ok(tree)
@@ -286,7 +286,7 @@ impl ProcessTree {
         }
 
         for child in &self.children {
-            child.modify(f)
+            child.modify(f);
         }
     }
 
@@ -325,7 +325,7 @@ fn convert(procs: &mut HashMap<i32, Vec<Process>>, tree: &mut ProcessTree) {
         tree.children = children.into_iter().map(ProcessTree::leaf).collect();
 
         for child in &mut tree.children {
-            convert(procs, child)
+            convert(procs, child);
         }
     }
 }
@@ -339,7 +339,7 @@ fn add_threads(tree: &mut ProcessTree) -> Result<()> {
                 "adding threads for child process {} failed",
                 child.root.pid
             )
-        })?
+        })?;
     }
 
     let path = format!("/proc/{}/task", tree.root.pid);
@@ -372,7 +372,7 @@ fn add_threads(tree: &mut ProcessTree) -> Result<()> {
 // utility Iterator for reading PIDs from STDIN
 // ----------------------------------------------------------------------------
 
-fn piderator<'a>(s: io::StdinLock<'a>) -> impl Iterator<Item = i32> + 'a {
+fn piderator(s: io::StdinLock<'_>) -> impl Iterator<Item = i32> + '_ {
     PIDerator::new(s.lines()).flatten()
 }
 
