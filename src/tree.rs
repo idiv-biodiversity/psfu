@@ -5,6 +5,7 @@ use std::process::Command;
 use anyhow::{anyhow, Context, Result};
 use clap::ArgMatches;
 use procfs::process::Process;
+use termtree::Tree;
 
 use crate::affinity;
 use crate::log;
@@ -60,7 +61,7 @@ fn run_show_plain(args: &ArgMatches) -> Result<()> {
 
         let command = command.as_ref().unwrap_or(&process.stat.comm);
 
-        Ok(vec![format!("{} {}", process.pid, command)])
+        Ok(format!("{} {}", process.pid, command))
     };
 
     match args.values_of("pid") {
@@ -68,14 +69,16 @@ fn run_show_plain(args: &ArgMatches) -> Result<()> {
             for pid in pids {
                 let pid: i32 = pid.parse().unwrap();
                 let tree = ProcessTree::new(pid, threads)?;
-                tree.show(&payload, 0);
+                let tree = tree.to_termtree(&payload);
+                println!("{}", tree);
             }
         }
 
         None => {
             for pid in piderator(io::stdin().lock()) {
                 let tree = ProcessTree::new(pid, threads)?;
-                tree.show(&payload, 0);
+                let tree = tree.to_termtree(&payload);
+                println!("{}", tree);
             }
         }
     }
@@ -91,7 +94,7 @@ fn run_show_affinity(args: &ArgMatches) -> Result<()> {
         let command = &process.stat.comm;
 
         affinity::get(process.pid).map(|affinity| {
-            vec![format!("{} {} {:?}", process.pid, command, affinity)]
+            format!("{} {} {:?}", process.pid, command, affinity)
         })
     };
 
@@ -100,14 +103,16 @@ fn run_show_affinity(args: &ArgMatches) -> Result<()> {
             for pid in pids {
                 let pid: i32 = pid.parse().unwrap();
                 let tree = ProcessTree::new(pid, threads)?;
-                tree.show(&payload, 0);
+                let tree = tree.to_termtree(&payload);
+                println!("{}", tree);
             }
         }
 
         None => {
             for pid in piderator(io::stdin().lock()) {
                 let tree = ProcessTree::new(pid, threads)?;
-                tree.show(&payload, 0);
+                let tree = tree.to_termtree(&payload);
+                println!("{}", tree);
             }
         }
     }
@@ -149,7 +154,7 @@ fn run_show_backtrace(args: &ArgMatches) -> Result<()> {
                         payload.push(format!("{} {} {}", pid, comm, line));
                     }
 
-                    Ok(payload)
+                    Ok(payload.join("\n"))
                 } else {
                     let error = String::from_utf8_lossy(&gdb.stderr)
                         .lines()
@@ -170,14 +175,16 @@ fn run_show_backtrace(args: &ArgMatches) -> Result<()> {
             for pid in pids {
                 let pid: i32 = pid.parse().unwrap();
                 let tree = ProcessTree::new(pid, threads)?;
-                tree.show(&payload, 0);
+                let tree = tree.to_termtree(&payload);
+                println!("{}", tree);
             }
         }
 
         None => {
             for pid in piderator(io::stdin().lock()) {
                 let tree = ProcessTree::new(pid, threads)?;
-                tree.show(&payload, 0);
+                let tree = tree.to_termtree(&payload);
+                println!("{}", tree);
             }
         }
     }
@@ -241,10 +248,9 @@ struct ProcessTree {
 
 impl ProcessTree {
     /// Returns a new process tree with parent `pid` as its root.
-    fn new(parent_pid: i32, threads: bool) -> Result<Self> {
-        let root = Process::new(parent_pid).with_context(|| {
-            format!("reading process {} failed", parent_pid)
-        })?;
+    fn new(pid: i32, threads: bool) -> Result<Self> {
+        let root = Process::new(pid)
+            .with_context(|| format!("reading process {} failed", pid))?;
 
         let mut tree = Self::leaf(root);
 
@@ -290,28 +296,23 @@ impl ProcessTree {
         }
     }
 
-    /// Recursively show the process tree.
-    fn show<F>(&self, payload: &F, indent: usize)
+    fn to_termtree<F>(&self, payload: &F) -> Tree<String>
     where
-        F: Fn(&Process) -> Result<Vec<String>>,
+        F: Fn(&Process) -> Result<String>,
     {
-        let prefix = " ".repeat(indent);
+        let p = match payload(&self.root) {
+            Ok(payload) => payload,
+            Err(e) => format!("{}", e),
+        };
 
-        match payload(&self.root) {
-            Ok(payload) => {
-                for p in payload {
-                    println!("{}{}", prefix, p);
-                }
-            }
-
-            Err(e) => {
-                eprintln!("{}{}", prefix, e);
-            }
-        }
+        let mut tree = Tree::root(p);
+        tree.set_multiline(true);
 
         for child in &self.children {
-            child.show(payload, indent + 2);
+            tree.push(child.to_termtree(payload));
         }
+
+        tree
     }
 }
 

@@ -20,6 +20,7 @@ exitfailure = "0.5"
 failure = "0.1"
 libc = "0.2"
 procfs = "0.12"
+termtree = "0.2"
 
 [dependencies.clap]
 version = "3"
