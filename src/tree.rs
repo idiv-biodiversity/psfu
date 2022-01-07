@@ -246,7 +246,7 @@ impl ProcessTree {
         let root = Process::new(pid)
             .with_context(|| format!("reading process {} failed", pid))?;
 
-        let mut tree = Self::leaf(root);
+        let mut tree = Self::from(root);
 
         let mut procs: HashMap<i32, Vec<Process>> = HashMap::new();
 
@@ -266,14 +266,6 @@ impl ProcessTree {
         }
 
         Ok(tree)
-    }
-
-    /// Returns a new process tree without children.
-    const fn leaf(process: Process) -> Self {
-        Self {
-            root: process,
-            children: vec![],
-        }
     }
 
     /// Recursively modify the process tree.
@@ -310,6 +302,15 @@ impl ProcessTree {
     }
 }
 
+impl From<Process> for ProcessTree {
+    fn from(process: Process) -> Self {
+        Self {
+            root: process,
+            children: vec![],
+        }
+    }
+}
+
 // ----------------------------------------------------------------------------
 // tree recursion helpers
 // ----------------------------------------------------------------------------
@@ -317,7 +318,7 @@ impl ProcessTree {
 /// Recursively moves children from procs into tree.
 fn convert(procs: &mut HashMap<i32, Vec<Process>>, tree: &mut ProcessTree) {
     if let Some(children) = procs.remove(&tree.root.pid) {
-        tree.children = children.into_iter().map(ProcessTree::leaf).collect();
+        tree.children = children.into_iter().map(ProcessTree::from).collect();
 
         for child in &mut tree.children {
             convert(procs, child);
@@ -353,7 +354,7 @@ fn add_threads(tree: &mut ProcessTree) -> Result<()> {
                     format!("reading thread {} failed", tid)
                 })?;
 
-                let task = ProcessTree::leaf(task);
+                let task = ProcessTree::from(task);
 
                 tree.children.push(task);
             }
