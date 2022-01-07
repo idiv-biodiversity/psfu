@@ -19,9 +19,7 @@ pub fn run(args: &ArgMatches) -> Result<()> {
     match args.subcommand() {
         Some(("show", args)) => run_show(args),
         Some(("modify", args)) => run_modify(args),
-
-        // unreachable because subcommand is required
-        _ => unreachable!(),
+        _ => unreachable!(crate::cli::SUBCOMMAND_REQUIRED),
     }
 }
 
@@ -29,9 +27,7 @@ pub fn run(args: &ArgMatches) -> Result<()> {
 fn run_modify(args: &ArgMatches) -> Result<()> {
     match args.subcommand() {
         Some(("affinity", args)) => run_modify_affinity(args),
-
-        // unreachable because subcommand is required
-        _ => unreachable!(),
+        _ => unreachable!(crate::cli::SUBCOMMAND_REQUIRED),
     }
 }
 
@@ -41,9 +37,7 @@ fn run_show(args: &ArgMatches) -> Result<()> {
         Some(("affinity", args)) => run_show_affinity(args),
         Some(("backtrace", args)) => run_show_backtrace(args),
         Some(("plain", args)) => run_show_plain(args),
-
-        // unreachable because subcommand is required
-        _ => unreachable!(),
+        _ => unreachable!(crate::cli::SUBCOMMAND_REQUIRED),
     }
 }
 

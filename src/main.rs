@@ -14,8 +14,6 @@ fn main() -> Result<()> {
 
     match args.subcommand() {
         Some(("tree", args)) => tree::run(args),
-
-        // unreachable because subcommand is required
-        _ => unreachable!(),
+        _ => unreachable!(crate::cli::SUBCOMMAND_REQUIRED),
     }
 }

@@ -140,3 +140,6 @@ fn is_cpuset(s: &str) -> Result<(), String> {
 fn is_pid(s: &str) -> Result<(), String> {
     crate::pid::validate(s).map(|_| ())
 }
+
+pub const SUBCOMMAND_REQUIRED: &str =
+    "CLI argument parser should have been set up to require a subcommand";
