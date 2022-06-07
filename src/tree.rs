@@ -19,7 +19,7 @@ pub fn run(args: &ArgMatches) -> Result<()> {
     match args.subcommand() {
         Some(("show", args)) => run_show(args),
         Some(("modify", args)) => run_modify(args),
-        _ => unreachable!(crate::cli::SUBCOMMAND_REQUIRED),
+        _ => unreachable!("{}", crate::cli::SUBCOMMAND_REQUIRED),
     }
 }
 
@@ -27,7 +27,7 @@ pub fn run(args: &ArgMatches) -> Result<()> {
 fn run_modify(args: &ArgMatches) -> Result<()> {
     match args.subcommand() {
         Some(("affinity", args)) => run_modify_affinity(args),
-        _ => unreachable!(crate::cli::SUBCOMMAND_REQUIRED),
+        _ => unreachable!("{}", crate::cli::SUBCOMMAND_REQUIRED),
     }
 }
 
@@ -37,7 +37,7 @@ fn run_show(args: &ArgMatches) -> Result<()> {
         Some(("affinity", args)) => run_show_affinity(args),
         Some(("backtrace", args)) => run_show_backtrace(args),
         Some(("plain", args)) => run_show_plain(args),
-        _ => unreachable!(crate::cli::SUBCOMMAND_REQUIRED),
+        _ => unreachable!("{}", crate::cli::SUBCOMMAND_REQUIRED),
     }
 }
 
@@ -291,7 +291,7 @@ impl ProcessTree {
             Err(e) => format!("{}", e),
         };
 
-        let mut tree = Tree::root(p);
+        let mut tree = Tree::new(p);
         tree.set_multiline(true);
 
         for child in &self.children {
@@ -377,7 +377,7 @@ struct PIDerator<B> {
 }
 
 impl<B: BufRead> PIDerator<B> {
-    fn new(b: io::Lines<B>) -> Self {
+    const fn new(b: io::Lines<B>) -> Self {
         Self { underlying: b }
     }
 }

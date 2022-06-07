@@ -1,8 +1,8 @@
 use atty::Stream;
 use clap::{crate_description, crate_name, crate_version};
-use clap::{App, AppSettings, Arg};
+use clap::{Arg, Command};
 
-pub fn build() -> App<'static> {
+pub fn build() -> Command<'static> {
     // ------------------------------------------------------------------------
     // arguments
     // ------------------------------------------------------------------------
@@ -37,7 +37,7 @@ pub fn build() -> App<'static> {
     // show commands
     // ------------------------------------------------------------------------
 
-    let plain = App::new("plain")
+    let plain = Command::new("plain")
         .arg(&pid)
         .arg(&arguments)
         .arg(&threads)
@@ -46,7 +46,7 @@ pub fn build() -> App<'static> {
             a.short('?').help("print help").long_help("Print help.")
         });
 
-    let affinity_s = App::new("affinity")
+    let affinity_s = Command::new("affinity")
         .arg(&pid)
         .arg(&threads)
         .about("show process tree with affinity (cpuset)")
@@ -54,7 +54,7 @@ pub fn build() -> App<'static> {
             a.short('?').help("print help").long_help("Print help.")
         });
 
-    let backtrace = App::new("backtrace")
+    let backtrace = Command::new("backtrace")
         .alias("bt")
         .arg(&pid)
         .arg(&threads)
@@ -68,7 +68,7 @@ pub fn build() -> App<'static> {
     // modify commands
     // ------------------------------------------------------------------------
 
-    let affinity_m = App::new("affinity")
+    let affinity_m = Command::new("affinity")
         .arg(&cpuset)
         .arg(&pid)
         .arg(&threads)
@@ -82,17 +82,19 @@ pub fn build() -> App<'static> {
     // tree commands
     // ------------------------------------------------------------------------
 
-    let modify = App::new("modify")
+    let modify = Command::new("modify")
         .about("modify processes")
-        .setting(AppSettings::SubcommandRequiredElseHelp)
+        .arg_required_else_help(true)
+        .subcommand_required(true)
         .subcommand(affinity_m)
         .mut_arg("help", |a| {
             a.short('?').help("print help").long_help("Print help.")
         });
 
-    let show = App::new("show")
+    let show = Command::new("show")
         .about("show processes")
-        .setting(AppSettings::SubcommandRequiredElseHelp)
+        .arg_required_else_help(true)
+        .subcommand_required(true)
         .subcommand(affinity_s)
         .subcommand(backtrace)
         .subcommand(plain)
@@ -104,9 +106,10 @@ pub fn build() -> App<'static> {
     // top-level commands
     // ------------------------------------------------------------------------
 
-    let tree = App::new("tree")
+    let tree = Command::new("tree")
         .about("process tree commands")
-        .setting(AppSettings::SubcommandRequiredElseHelp)
+        .arg_required_else_help(true)
+        .subcommand_required(true)
         .subcommand(modify)
         .subcommand(show)
         .mut_arg("help", |a| {
@@ -117,12 +120,13 @@ pub fn build() -> App<'static> {
     // put it all together
     // ------------------------------------------------------------------------
 
-    App::new(crate_name!())
+    Command::new(crate_name!())
         .about(crate_description!())
         .version(crate_version!())
-        .global_setting(AppSettings::ArgsNegateSubcommands)
-        .global_setting(AppSettings::InferSubcommands)
-        .setting(AppSettings::SubcommandRequiredElseHelp)
+        .arg_required_else_help(true)
+        .args_conflicts_with_subcommands(true)
+        .infer_subcommands(true)
+        .subcommand_required(true)
         .subcommand(tree)
         .mut_arg("help", |a| {
             a.short('?').help("print help").long_help("Print help.")
