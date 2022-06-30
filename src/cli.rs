@@ -19,7 +19,7 @@ pub fn build() -> Command<'static> {
         .help("show arguments");
 
     let cpuset = Arg::new("cpuset")
-        .help("cpuset")
+        .help("single integer or 'free' for all")
         .required(true)
         .validator(is_cpuset);
 
