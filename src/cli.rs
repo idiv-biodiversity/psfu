@@ -137,7 +137,7 @@ fn is_cpuset(s: &str) -> Result<(), String> {
     if s == "free" || s.parse::<u64>().is_ok() {
         Ok(())
     } else {
-        Err(format!("invalid cpuset: {:?}", s))
+        Err(format!("invalid cpuset: {s:?}"))
     }
 }
 

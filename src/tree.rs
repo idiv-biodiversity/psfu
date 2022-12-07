@@ -65,13 +65,13 @@ fn run_show_plain(args: &ArgMatches) -> Result<()> {
             let pid: i32 = pid.parse().unwrap();
             let tree = ProcessTree::new(pid, threads)?;
             let tree = tree.to_termtree(&payload);
-            println!("{}", tree);
+            println!("{tree}");
         }
     } else {
         for pid in piderator(io::stdin()) {
             let tree = ProcessTree::new(pid, threads)?;
             let tree = tree.to_termtree(&payload);
-            println!("{}", tree);
+            println!("{tree}");
         }
     }
 
@@ -85,9 +85,8 @@ fn run_show_affinity(args: &ArgMatches) -> Result<()> {
     let payload = |process: &Process| {
         let command = &process.stat()?.comm;
 
-        affinity::get(process.pid).map(|affinity| {
-            format!("{} {} {:?}", process.pid, command, affinity)
-        })
+        affinity::get(process.pid)
+            .map(|affinity| format!("{} {command} {affinity:?}", process.pid))
     };
 
     if let Some(pids) = args.values_of("pid") {
@@ -95,13 +94,13 @@ fn run_show_affinity(args: &ArgMatches) -> Result<()> {
             let pid: i32 = pid.parse().unwrap();
             let tree = ProcessTree::new(pid, threads)?;
             let tree = tree.to_termtree(&payload);
-            println!("{}", tree);
+            println!("{tree}");
         }
     } else {
         for pid in piderator(io::stdin()) {
             let tree = ProcessTree::new(pid, threads)?;
             let tree = tree.to_termtree(&payload);
-            println!("{}", tree);
+            println!("{tree}");
         }
     }
 
@@ -139,7 +138,7 @@ fn run_show_backtrace(args: &ArgMatches) -> Result<()> {
                             continue;
                         }
 
-                        payload.push(format!("{} {} {}", pid, comm, line));
+                        payload.push(format!("{pid} {comm} {line}"));
                     }
 
                     Ok(payload.join("\n"))
@@ -163,13 +162,13 @@ fn run_show_backtrace(args: &ArgMatches) -> Result<()> {
             let pid: i32 = pid.parse().unwrap();
             let tree = ProcessTree::new(pid, threads)?;
             let tree = tree.to_termtree(&payload);
-            println!("{}", tree);
+            println!("{tree}");
         }
     } else {
         for pid in piderator(io::stdin()) {
             let tree = ProcessTree::new(pid, threads)?;
             let tree = tree.to_termtree(&payload);
-            println!("{}", tree);
+            println!("{tree}");
         }
     }
 
@@ -190,7 +189,7 @@ fn run_modify_affinity(args: &ArgMatches) -> Result<()> {
         if verbose {
             let pid = &process.pid;
             let cmd = &process.stat()?.comm;
-            eprintln!("modifying process {} {}", pid, cmd);
+            eprintln!("modifying process {pid} {cmd}");
         }
 
         affinity::set(process.pid, &cpuset)
@@ -230,7 +229,7 @@ impl ProcessTree {
     /// Returns a new process tree with parent `pid` as its root.
     fn new(pid: i32, threads: bool) -> Result<Self> {
         let root = Process::new(pid)
-            .with_context(|| format!("reading process {} failed", pid))?;
+            .with_context(|| format!("reading process {pid} failed"))?;
 
         let mut tree = Self::from(root);
 
@@ -262,7 +261,7 @@ impl ProcessTree {
         F: Fn(&Process) -> Result<()>,
     {
         if let Err(e) = f(&self.root) {
-            log::error(format!("{}", e));
+            log::error(format!("{e}"));
         }
 
         for child in &self.children {
@@ -276,7 +275,7 @@ impl ProcessTree {
     {
         let p = match payload(&self.root) {
             Ok(payload) => payload,
-            Err(e) => format!("{}", e),
+            Err(e) => format!("{e}"),
         };
 
         let mut tree = Tree::new(p);
@@ -338,9 +337,8 @@ fn add_threads(tree: &mut ProcessTree) -> Result<()> {
                 .unwrap();
 
             if tid != tree.root.pid {
-                let task = Process::new(tid).with_context(|| {
-                    format!("reading thread {} failed", tid)
-                })?;
+                let task = Process::new(tid)
+                    .with_context(|| format!("reading thread {tid} failed"))?;
 
                 let task = ProcessTree::from(task);
 
@@ -392,7 +390,7 @@ impl<B: BufRead> Iterator for PIDerator<B> {
             },
 
             Some(Err(e)) => {
-                log::error(format!("broken line: {}", e));
+                log::error(format!("broken line: {e}"));
                 Some(None)
             }
 
