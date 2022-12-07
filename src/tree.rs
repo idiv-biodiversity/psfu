@@ -381,7 +381,7 @@ impl<B: BufRead> Iterator for PIDerator<B> {
         match self.underlying.next() {
             Some(Ok(line)) if line.trim().is_empty() => Some(None),
 
-            Some(Ok(line)) => match crate::pid::validate(&line) {
+            Some(Ok(line)) => match crate::pid::validate(line) {
                 Ok(pid) => Some(Some(pid)),
                 Err(e) => {
                     log::error(e);
