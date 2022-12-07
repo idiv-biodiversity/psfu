@@ -53,9 +53,11 @@ fn run_show_plain(args: &ArgMatches) -> Result<()> {
             None
         };
 
-        let command = command.as_ref().unwrap_or(&process.stat.comm);
-
-        Ok(format!("{} {}", process.pid, command))
+        Ok(format!(
+            "{} {}",
+            process.pid,
+            command.as_ref().unwrap_or(&process.stat()?.comm)
+        ))
     };
 
     match args.values_of("pid") {
@@ -85,7 +87,7 @@ fn run_show_affinity(args: &ArgMatches) -> Result<()> {
     let threads = args.is_present("threads");
 
     let payload = |process: &Process| {
-        let command = &process.stat.comm;
+        let command = &process.stat()?.comm;
 
         affinity::get(process.pid).map(|affinity| {
             format!("{} {} {:?}", process.pid, command, affinity)
@@ -121,7 +123,7 @@ fn run_show_backtrace(args: &ArgMatches) -> Result<()> {
 
     let payload = |process: &Process| {
         let pid = process.pid;
-        let comm = &process.stat.comm;
+        let comm = &process.stat()?.comm;
 
         let mut gdb_cmd = Command::new("gdb");
         gdb_cmd
@@ -199,7 +201,7 @@ fn run_modify_affinity(args: &ArgMatches) -> Result<()> {
     let f = |process: &Process| {
         if verbose {
             let pid = &process.pid;
-            let cmd = &process.stat.comm;
+            let cmd = &process.stat()?.comm;
             eprintln!("modifying process {} {}", pid, cmd);
         }
 
@@ -231,7 +233,7 @@ fn run_modify_affinity(args: &ArgMatches) -> Result<()> {
 // ----------------------------------------------------------------------------
 
 /// A process tree.
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 struct ProcessTree {
     /// The root process of this tree.
     root: Process,
@@ -253,8 +255,10 @@ impl ProcessTree {
         for process in procfs::process::all_processes()
             .context("reading all processes failed")?
         {
+            let process = process?;
+
             let children =
-                procs.entry(process.stat.ppid).or_insert_with(Vec::new);
+                procs.entry(process.stat()?.ppid).or_insert_with(Vec::new);
 
             children.push(process);
         }
