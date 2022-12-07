@@ -128,9 +128,9 @@ fn run_show_backtrace(args: &ArgMatches) -> Result<()> {
         let mut gdb_cmd = Command::new("gdb");
         gdb_cmd
             // no ~/.gdbinit and no .gdbinit
-            .args(&["-nh", "-nx"])
+            .args(["-nh", "-nx"])
             // run backtrace in batch mode
-            .args(&["-batch", "-ex", "bt"])
+            .args(["-batch", "-ex", "bt"])
             // use this pid
             .arg("-p")
             .arg(process.pid.to_string());
