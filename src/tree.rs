@@ -154,7 +154,7 @@ fn run_show_backtrace(args: &ArgMatches) -> Result<()> {
                 } else {
                     let error = String::from_utf8_lossy(&gdb.stderr)
                         .lines()
-                        .fold(String::from(""), |acc, line| acc + " " + line);
+                        .fold(String::default(), |acc, line| acc + " " + line);
 
                     Err(anyhow!("{} {} {}", pid, comm, error))
                 }
