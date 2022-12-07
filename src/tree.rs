@@ -60,22 +60,18 @@ fn run_show_plain(args: &ArgMatches) -> Result<()> {
         ))
     };
 
-    match args.values_of("pid") {
-        Some(pids) => {
-            for pid in pids {
-                let pid: i32 = pid.parse().unwrap();
-                let tree = ProcessTree::new(pid, threads)?;
-                let tree = tree.to_termtree(&payload);
-                println!("{}", tree);
-            }
+    if let Some(pids) = args.values_of("pid") {
+        for pid in pids {
+            let pid: i32 = pid.parse().unwrap();
+            let tree = ProcessTree::new(pid, threads)?;
+            let tree = tree.to_termtree(&payload);
+            println!("{}", tree);
         }
-
-        None => {
-            for pid in piderator(io::stdin().lock()) {
-                let tree = ProcessTree::new(pid, threads)?;
-                let tree = tree.to_termtree(&payload);
-                println!("{}", tree);
-            }
+    } else {
+        for pid in piderator(io::stdin()) {
+            let tree = ProcessTree::new(pid, threads)?;
+            let tree = tree.to_termtree(&payload);
+            println!("{}", tree);
         }
     }
 
@@ -94,22 +90,18 @@ fn run_show_affinity(args: &ArgMatches) -> Result<()> {
         })
     };
 
-    match args.values_of("pid") {
-        Some(pids) => {
-            for pid in pids {
-                let pid: i32 = pid.parse().unwrap();
-                let tree = ProcessTree::new(pid, threads)?;
-                let tree = tree.to_termtree(&payload);
-                println!("{}", tree);
-            }
+    if let Some(pids) = args.values_of("pid") {
+        for pid in pids {
+            let pid: i32 = pid.parse().unwrap();
+            let tree = ProcessTree::new(pid, threads)?;
+            let tree = tree.to_termtree(&payload);
+            println!("{}", tree);
         }
-
-        None => {
-            for pid in piderator(io::stdin().lock()) {
-                let tree = ProcessTree::new(pid, threads)?;
-                let tree = tree.to_termtree(&payload);
-                println!("{}", tree);
-            }
+    } else {
+        for pid in piderator(io::stdin()) {
+            let tree = ProcessTree::new(pid, threads)?;
+            let tree = tree.to_termtree(&payload);
+            println!("{}", tree);
         }
     }
 
@@ -166,22 +158,18 @@ fn run_show_backtrace(args: &ArgMatches) -> Result<()> {
         }
     };
 
-    match args.values_of("pid") {
-        Some(pids) => {
-            for pid in pids {
-                let pid: i32 = pid.parse().unwrap();
-                let tree = ProcessTree::new(pid, threads)?;
-                let tree = tree.to_termtree(&payload);
-                println!("{}", tree);
-            }
+    if let Some(pids) = args.values_of("pid") {
+        for pid in pids {
+            let pid: i32 = pid.parse().unwrap();
+            let tree = ProcessTree::new(pid, threads)?;
+            let tree = tree.to_termtree(&payload);
+            println!("{}", tree);
         }
-
-        None => {
-            for pid in piderator(io::stdin().lock()) {
-                let tree = ProcessTree::new(pid, threads)?;
-                let tree = tree.to_termtree(&payload);
-                println!("{}", tree);
-            }
+    } else {
+        for pid in piderator(io::stdin()) {
+            let tree = ProcessTree::new(pid, threads)?;
+            let tree = tree.to_termtree(&payload);
+            println!("{}", tree);
         }
     }
 
@@ -208,20 +196,16 @@ fn run_modify_affinity(args: &ArgMatches) -> Result<()> {
         affinity::set(process.pid, &cpuset)
     };
 
-    match args.values_of("pid") {
-        Some(pids) => {
-            for pid in pids {
-                let pid: i32 = pid.parse().unwrap();
-                let tree = ProcessTree::new(pid, threads)?;
-                tree.modify(&f);
-            }
+    if let Some(pids) = args.values_of("pid") {
+        for pid in pids {
+            let pid: i32 = pid.parse().unwrap();
+            let tree = ProcessTree::new(pid, threads)?;
+            tree.modify(&f);
         }
-
-        None => {
-            for pid in piderator(io::stdin().lock()) {
-                let tree = ProcessTree::new(pid, threads)?;
-                tree.modify(&f);
-            }
+    } else {
+        for pid in piderator(io::stdin()) {
+            let tree = ProcessTree::new(pid, threads)?;
+            tree.modify(&f);
         }
     }
 
@@ -372,17 +356,23 @@ fn add_threads(tree: &mut ProcessTree) -> Result<()> {
 // utility Iterator for reading PIDs from STDIN
 // ----------------------------------------------------------------------------
 
-fn piderator(s: io::StdinLock<'_>) -> impl Iterator<Item = i32> + '_ {
-    PIDerator::new(s.lines()).flatten()
+fn piderator(stdin: io::Stdin) -> impl Iterator<Item = i32> {
+    PIDerator::from(stdin).flatten()
 }
 
 struct PIDerator<B> {
     underlying: io::Lines<B>,
 }
 
-impl<B: BufRead> PIDerator<B> {
-    const fn new(b: io::Lines<B>) -> Self {
-        Self { underlying: b }
+impl<B> From<io::Lines<B>> for PIDerator<B> {
+    fn from(underlying: io::Lines<B>) -> Self {
+        Self { underlying }
+    }
+}
+
+impl From<io::Stdin> for PIDerator<io::StdinLock<'_>> {
+    fn from(stdin: io::Stdin) -> Self {
+        Self::from(stdin.lines())
     }
 }
 
