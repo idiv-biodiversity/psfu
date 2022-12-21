@@ -43,8 +43,8 @@ fn run_show(args: &ArgMatches) -> Result<()> {
 
 /// Runs **tree show plain** subcommand.
 fn run_show_plain(args: &ArgMatches) -> Result<()> {
-    let arguments = args.is_present("arguments");
-    let threads = args.is_present("threads");
+    let arguments = args.get_flag("arguments");
+    let threads = args.get_flag("threads");
 
     let payload = |process: &Process| {
         let command = if arguments {
@@ -60,10 +60,9 @@ fn run_show_plain(args: &ArgMatches) -> Result<()> {
         ))
     };
 
-    if let Some(pids) = args.values_of("pid") {
+    if let Some(pids) = args.get_many("pid") {
         for pid in pids {
-            let pid: i32 = pid.parse().unwrap();
-            let tree = ProcessTree::new(pid, threads)?;
+            let tree = ProcessTree::new(*pid, threads)?;
             let tree = tree.to_termtree(&payload);
             println!("{tree}");
         }
@@ -80,7 +79,7 @@ fn run_show_plain(args: &ArgMatches) -> Result<()> {
 
 /// Runs **tree show affinity** subcommand.
 fn run_show_affinity(args: &ArgMatches) -> Result<()> {
-    let threads = args.is_present("threads");
+    let threads = args.get_flag("threads");
 
     let payload = |process: &Process| {
         let command = &process.stat()?.comm;
@@ -89,10 +88,9 @@ fn run_show_affinity(args: &ArgMatches) -> Result<()> {
             .map(|affinity| format!("{} {command} {affinity:?}", process.pid))
     };
 
-    if let Some(pids) = args.values_of("pid") {
+    if let Some(pids) = args.get_many("pid") {
         for pid in pids {
-            let pid: i32 = pid.parse().unwrap();
-            let tree = ProcessTree::new(pid, threads)?;
+            let tree = ProcessTree::new(*pid, threads)?;
             let tree = tree.to_termtree(&payload);
             println!("{tree}");
         }
@@ -109,8 +107,8 @@ fn run_show_affinity(args: &ArgMatches) -> Result<()> {
 
 /// Runs **tree show backtrace** subcommand.
 fn run_show_backtrace(args: &ArgMatches) -> Result<()> {
-    let threads = args.is_present("threads");
-    let verbose = args.is_present("verbose");
+    let threads = args.get_flag("threads");
+    let verbose = args.get_flag("verbose");
 
     let payload = |process: &Process| {
         let pid = process.pid;
@@ -157,10 +155,9 @@ fn run_show_backtrace(args: &ArgMatches) -> Result<()> {
         }
     };
 
-    if let Some(pids) = args.values_of("pid") {
+    if let Some(pids) = args.get_many("pid") {
         for pid in pids {
-            let pid: i32 = pid.parse().unwrap();
-            let tree = ProcessTree::new(pid, threads)?;
+            let tree = ProcessTree::new(*pid, threads)?;
             let tree = tree.to_termtree(&payload);
             println!("{tree}");
         }
@@ -177,10 +174,14 @@ fn run_show_backtrace(args: &ArgMatches) -> Result<()> {
 
 /// Runs **tree modify affinity** subcommand.
 fn run_modify_affinity(args: &ArgMatches) -> Result<()> {
-    let threads = args.is_present("threads");
-    let verbose = args.is_present("verbose");
+    let threads = args.get_flag("threads");
+    let verbose = args.get_flag("verbose");
 
-    let cpuset: Vec<usize> = match args.value_of("cpuset").unwrap() {
+    let cpuset: Vec<usize> = match args
+        .get_one::<String>("cpuset")
+        .map(String::as_str)
+        .unwrap()
+    {
         "free" => (0..libc::CPU_SETSIZE as usize).collect(),
         cpuset => vec![cpuset.parse().unwrap()],
     };
@@ -195,10 +196,9 @@ fn run_modify_affinity(args: &ArgMatches) -> Result<()> {
         affinity::set(process.pid, &cpuset)
     };
 
-    if let Some(pids) = args.values_of("pid") {
+    if let Some(pids) = args.get_many("pid") {
         for pid in pids {
-            let pid: i32 = pid.parse().unwrap();
-            let tree = ProcessTree::new(pid, threads)?;
+            let tree = ProcessTree::new(*pid, threads)?;
             tree.modify(&f);
         }
     } else {
