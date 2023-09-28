@@ -3,6 +3,7 @@
 mod affinity;
 mod cli;
 mod log;
+mod nice;
 mod pid;
 mod tree;
 

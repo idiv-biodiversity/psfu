@@ -9,6 +9,7 @@ use termtree::Tree;
 
 use crate::affinity;
 use crate::log;
+use crate::nice;
 
 // ----------------------------------------------------------------------------
 // CLI runner
@@ -27,6 +28,7 @@ pub fn run(args: &ArgMatches) -> Result<()> {
 fn run_modify(args: &ArgMatches) -> Result<()> {
     match args.subcommand() {
         Some(("affinity", args)) => run_modify_affinity(args),
+        Some(("nice", args)) => run_modify_nice(args),
         _ => unreachable!("{}", crate::cli::SUBCOMMAND_REQUIRED),
     }
 }
@@ -36,6 +38,7 @@ fn run_show(args: &ArgMatches) -> Result<()> {
     match args.subcommand() {
         Some(("affinity", args)) => run_show_affinity(args),
         Some(("backtrace", args)) => run_show_backtrace(args),
+        Some(("nice", args)) => run_show_nice(args),
         Some(("plain", args)) => run_show_plain(args),
         _ => unreachable!("{}", crate::cli::SUBCOMMAND_REQUIRED),
     }
@@ -172,6 +175,40 @@ fn run_show_backtrace(args: &ArgMatches) -> Result<()> {
     Ok(())
 }
 
+/// Runs **tree show nice** subcommand.
+fn run_show_nice(args: &ArgMatches) -> Result<()> {
+    let threads = args.get_flag("threads");
+
+    let payload = |process: &Process| {
+        let command = &process.stat()?.comm;
+        let pid = process.pid;
+
+        // need to convert into u32 as required by libc::getpriority
+        pid.try_into().map_or_else(
+            |_| Ok(format!("invalid process id: {pid}")),
+            |pid| {
+                nice::get(pid).map(|value| format!("{pid} {command} {value}"))
+            },
+        )
+    };
+
+    if let Some(pids) = args.get_many("pid") {
+        for pid in pids {
+            let tree = ProcessTree::new(*pid, threads)?;
+            let tree = tree.to_termtree(&payload);
+            println!("{tree}");
+        }
+    } else {
+        for pid in piderator(io::stdin()) {
+            let tree = ProcessTree::new(pid, threads)?;
+            let tree = tree.to_termtree(&payload);
+            println!("{tree}");
+        }
+    }
+
+    Ok(())
+}
+
 /// Runs **tree modify affinity** subcommand.
 fn run_modify_affinity(args: &ArgMatches) -> Result<()> {
     let threads = args.get_flag("threads");
@@ -194,6 +231,42 @@ fn run_modify_affinity(args: &ArgMatches) -> Result<()> {
         }
 
         affinity::set(process.pid, &cpuset)
+    };
+
+    if let Some(pids) = args.get_many("pid") {
+        for pid in pids {
+            let tree = ProcessTree::new(*pid, threads)?;
+            tree.modify(&f);
+        }
+    } else {
+        for pid in piderator(io::stdin()) {
+            let tree = ProcessTree::new(pid, threads)?;
+            tree.modify(&f);
+        }
+    }
+
+    Ok(())
+}
+
+/// Runs **tree modify nice** subcommand.
+fn run_modify_nice(args: &ArgMatches) -> Result<()> {
+    let threads = args.get_flag("threads");
+    let verbose = args.get_flag("verbose");
+
+    let niceness = args.get_one::<i32>("niceness").copied().unwrap_or(10);
+
+    let f = |process: &Process| {
+        if verbose {
+            let pid = &process.pid;
+            let cmd = &process.stat()?.comm;
+            eprintln!("modifying process {pid} {cmd}");
+        }
+
+        // need to convert into u32 as required by libc::getpriority
+        process.pid.try_into().map_or_else(
+            |_| Err(anyhow!("invalid process id: {}", process.pid)),
+            |pid| nice::set(pid, niceness),
+        )
     };
 
     if let Some(pids) = args.get_many("pid") {
