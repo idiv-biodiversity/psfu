@@ -42,6 +42,7 @@ fn cmd_tree_modify() -> Command {
         .disable_help_flag(true)
         .subcommand_required(true)
         .subcommand(cmd_modify_affinity())
+        .subcommand(cmd_modify_nice())
 }
 
 fn cmd_tree_show() -> Command {
@@ -52,6 +53,7 @@ fn cmd_tree_show() -> Command {
         .subcommand_required(true)
         .subcommand(cmd_show_affinity())
         .subcommand(cmd_show_backtrace())
+        .subcommand(cmd_show_nice())
         .subcommand(cmd_show_plain())
 }
 
@@ -67,6 +69,16 @@ fn cmd_modify_affinity() -> Command {
         .arg(arg_threads())
         .arg(arg_verbose())
         .about("modify process tree affinity (cpuset)")
+}
+
+fn cmd_modify_nice() -> Command {
+    Command::new("nice")
+        .arg(arg_help())
+        .arg(arg_niceness())
+        .arg(arg_pid())
+        .arg(arg_threads())
+        .arg(arg_verbose())
+        .about("modify process tree nice values")
 }
 
 fn cmd_show_affinity() -> Command {
@@ -85,6 +97,15 @@ fn cmd_show_backtrace() -> Command {
         .arg(arg_threads())
         .arg(arg_verbose())
         .about("show process tree with backtrace")
+}
+
+fn cmd_show_nice() -> Command {
+    Command::new("nice")
+        .arg(arg_help())
+        .arg(arg_pid())
+        .arg(arg_threads())
+        .arg(arg_verbose())
+        .about("show process tree with nice values")
 }
 
 fn cmd_show_plain() -> Command {
@@ -115,6 +136,14 @@ fn arg_help() -> Arg {
         .action(ArgAction::Help)
         .help("print help (use --help to see all options)")
         .long_help("Print help.")
+}
+
+fn arg_niceness() -> Arg {
+    Arg::new("niceness")
+        .help("niceness from -20 to 19 inclusively")
+        .required(true)
+        .action(ArgAction::Set)
+        .value_parser(is_niceness)
 }
 
 fn arg_pid() -> Arg {
@@ -167,6 +196,21 @@ fn is_cpuset(s: &str) -> Result<String, String> {
     } else {
         Err(format!("invalid cpuset: {s:?}"))
     }
+}
+
+fn is_niceness(s: &str) -> Result<i32, String> {
+    s.parse::<i32>().map_or_else(
+        |_| Err(format!("not an i32: {s:?}")),
+        |niceness| {
+            if (-20..=19).contains(&niceness) {
+                Ok(niceness)
+            } else {
+                Err(format!(
+                    "not a niceness value between -20 and 19: {niceness}"
+                ))
+            }
+        },
+    )
 }
 
 fn is_pid(s: &str) -> Result<i32, String> {
