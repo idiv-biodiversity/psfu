@@ -240,8 +240,7 @@ impl ProcessTree {
         {
             let process = process?;
 
-            let children =
-                procs.entry(process.stat()?.ppid).or_insert_with(Vec::new);
+            let children = procs.entry(process.stat()?.ppid).or_default();
 
             children.push(process);
         }
