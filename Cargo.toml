@@ -17,7 +17,7 @@ rust-version = "1.70"
 anyhow = "1"
 errno = "0.3"
 libc = "0.2"
-procfs = "0.15"
+procfs = "0.16"
 termtree = "0.4"
 
 [dependencies.clap]
