@@ -73,6 +73,14 @@ Modify commands are:
 Installation
 ------------
 
+### Arch Linux
+
+Install the [psfu AUR package][aur-package]:
+
+```bash
+pacaur -S psfu
+```
+
 ### cargo install
 
 ```bash
@@ -87,3 +95,6 @@ cd psfu
 cargo build --release
 install -Dm755 target/release/psfu ~/bin/psfu
 ```
+
+
+[aur-package]: https://aur.archlinux.org/packages/psfu "psfu AUR package"
