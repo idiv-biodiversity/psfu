@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::io::{self, BufRead};
 use std::process::Command;
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 use clap::ArgMatches;
 use procfs::process::Process;
 use termtree::Tree;

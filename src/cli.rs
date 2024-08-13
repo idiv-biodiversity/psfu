@@ -1,7 +1,7 @@
-use std::io::{stdin, IsTerminal};
+use std::io::{IsTerminal, stdin};
 
-use clap::{crate_description, crate_name, crate_version};
 use clap::{Arg, ArgAction, Command};
+use clap::{crate_description, crate_name, crate_version};
 
 pub const SUBCOMMAND_REQUIRED: &str =
     "CLI argument parser should have been set up to require a subcommand";

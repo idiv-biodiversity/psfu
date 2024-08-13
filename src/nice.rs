@@ -1,6 +1,6 @@
 //! Getting and setting process niceness.
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use errno::Errno;
 
 /// Returns the niceness of the given process.

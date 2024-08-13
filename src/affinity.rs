@@ -1,6 +1,6 @@
 //! Getting and setting processor affinity aka cpuset.
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use errno::errno;
 
 // For the joy of using a C interface.
