@@ -12,7 +12,7 @@ pub fn get(pid: libc::pid_t) -> Result<Vec<usize>> {
         let mut mask = std::mem::zeroed();
         libc::CPU_ZERO(&mut mask);
 
-        if 0 != libc::sched_getaffinity(pid, CPU_SET_SIZE, &mut mask) {
+        if 0 != libc::sched_getaffinity(pid, CPU_SET_SIZE, &raw mut mask) {
             return Err(anyhow!("sched_getaffinity: {}", errno()));
         }
 
@@ -40,7 +40,7 @@ pub fn set(pid: libc::pid_t, cpuset: &[usize]) -> Result<()> {
             libc::CPU_SET(*i, &mut mask);
         }
 
-        if 0 != libc::sched_setaffinity(pid, CPU_SET_SIZE, &mask) {
+        if 0 != libc::sched_setaffinity(pid, CPU_SET_SIZE, &raw const mask) {
             return Err(anyhow!("sched_setaffinity: {}", errno()));
         }
     };
