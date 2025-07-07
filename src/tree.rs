@@ -15,7 +15,7 @@ use crate::nice;
 // CLI runner
 // ----------------------------------------------------------------------------
 
-/// Runs **tree** subcommand.
+/// Runs `tree` subcommand.
 pub fn run(args: &ArgMatches) -> Result<()> {
     match args.subcommand() {
         Some(("modify", args)) => run_modify(args),
@@ -24,7 +24,7 @@ pub fn run(args: &ArgMatches) -> Result<()> {
     }
 }
 
-/// Runs **tree modify** subcommand.
+/// Runs `tree modify` subcommand.
 fn run_modify(args: &ArgMatches) -> Result<()> {
     match args.subcommand() {
         Some(("affinity", args)) => run_modify_affinity(args),
@@ -33,7 +33,7 @@ fn run_modify(args: &ArgMatches) -> Result<()> {
     }
 }
 
-/// Runs **tree show** subcommand.
+/// Runs `tree show` subcommand.
 fn run_show(args: &ArgMatches) -> Result<()> {
     match args.subcommand() {
         Some(("affinity", args)) => run_show_affinity(args),
@@ -44,7 +44,7 @@ fn run_show(args: &ArgMatches) -> Result<()> {
     }
 }
 
-/// Runs **tree show plain** subcommand.
+/// Runs `tree show plain` subcommand.
 fn run_show_plain(args: &ArgMatches) -> Result<()> {
     let arguments = args.get_flag("arguments");
     let threads = args.get_flag("threads");
@@ -80,7 +80,7 @@ fn run_show_plain(args: &ArgMatches) -> Result<()> {
     Ok(())
 }
 
-/// Runs **tree show affinity** subcommand.
+/// Runs `tree show affinity` subcommand.
 fn run_show_affinity(args: &ArgMatches) -> Result<()> {
     let threads = args.get_flag("threads");
 
@@ -108,7 +108,7 @@ fn run_show_affinity(args: &ArgMatches) -> Result<()> {
     Ok(())
 }
 
-/// Runs **tree show backtrace** subcommand.
+/// Runs `tree show backtrace` subcommand.
 fn run_show_backtrace(args: &ArgMatches) -> Result<()> {
     let threads = args.get_flag("threads");
     let verbose = args.get_flag("verbose");
@@ -175,7 +175,7 @@ fn run_show_backtrace(args: &ArgMatches) -> Result<()> {
     Ok(())
 }
 
-/// Runs **tree show nice** subcommand.
+/// Runs `tree show nice` subcommand.
 fn run_show_nice(args: &ArgMatches) -> Result<()> {
     let threads = args.get_flag("threads");
 
@@ -209,7 +209,7 @@ fn run_show_nice(args: &ArgMatches) -> Result<()> {
     Ok(())
 }
 
-/// Runs **tree modify affinity** subcommand.
+/// Runs `tree modify affinity` subcommand.
 fn run_modify_affinity(args: &ArgMatches) -> Result<()> {
     let threads = args.get_flag("threads");
     let verbose = args.get_flag("verbose");
@@ -248,7 +248,7 @@ fn run_modify_affinity(args: &ArgMatches) -> Result<()> {
     Ok(())
 }
 
-/// Runs **tree modify nice** subcommand.
+/// Runs `tree modify nice` subcommand.
 fn run_modify_nice(args: &ArgMatches) -> Result<()> {
     let threads = args.get_flag("threads");
     let verbose = args.get_flag("verbose");
