@@ -26,6 +26,8 @@ Other show commands are:
 - **backtrace**: show process/thread traces (using `gdb`, may require admin
   privileges)
 - **nice**: show niceness
+- **oom_score**: show current out-of-memory score
+- **oom_score_adj**: show out-of-memory score adjustment
 
 ### modify commands
 
@@ -33,6 +35,7 @@ Modify commands are:
 
 - **affinity**: modify CPU affinity
 - **nice**: modify niceness
+- **oom_score_adj**: modify out-of-memory score adjustment
 
 ### tips
 

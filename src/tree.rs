@@ -29,6 +29,7 @@ fn run_modify(args: &ArgMatches) -> Result<()> {
     match args.subcommand() {
         Some(("affinity", args)) => run_modify_affinity(args),
         Some(("nice", args)) => run_modify_nice(args),
+        Some(("oom_score_adj", args)) => run_modify_oom_score_adj(args),
         _ => unreachable!("{}", crate::cli::SUBCOMMAND_REQUIRED),
     }
 }
@@ -39,6 +40,8 @@ fn run_show(args: &ArgMatches) -> Result<()> {
         Some(("affinity", args)) => run_show_affinity(args),
         Some(("backtrace", args)) => run_show_backtrace(args),
         Some(("nice", args)) => run_show_nice(args),
+        Some(("oom_score", args)) => run_show_oom_score(args),
+        Some(("oom_score_adj", args)) => run_show_oom_score_adj(args),
         Some(("plain", args)) => run_show_plain(args),
         _ => unreachable!("{}", crate::cli::SUBCOMMAND_REQUIRED),
     }
@@ -72,6 +75,34 @@ fn run_show_affinity(args: &ArgMatches) -> Result<()> {
 
         affinity::get(process.pid)
             .map(|affinity| format!("{} {command} {affinity:?}", process.pid))
+    };
+
+    print_tree(args, payload)
+}
+
+/// Runs `tree show oom_score` subcommand.
+fn run_show_oom_score(args: &ArgMatches) -> Result<()> {
+    let payload = |process: &Process| {
+        let command = &process.stat()?.comm;
+
+        process
+            .oom_score()
+            .map(|value| format!("{} {command} {value}", process.pid))
+            .map_err(From::from)
+    };
+
+    print_tree(args, payload)
+}
+
+/// Runs `tree show oom_score_adj` subcommand.
+fn run_show_oom_score_adj(args: &ArgMatches) -> Result<()> {
+    let payload = |process: &Process| {
+        let command = &process.stat()?.comm;
+
+        process
+            .oom_score_adj()
+            .map(|value| format!("{} {command} {value}", process.pid))
+            .map_err(From::from)
     };
 
     print_tree(args, payload)
@@ -194,6 +225,30 @@ fn run_modify_nice(args: &ArgMatches) -> Result<()> {
             |_| Err(anyhow!("invalid process id: {}", process.pid)),
             |pid| nice::set(pid, niceness),
         )
+    };
+
+    modify_tree(args, f)
+}
+
+/// Runs `tree modify oom_score_adj` subcommand.
+fn run_modify_oom_score_adj(args: &ArgMatches) -> Result<()> {
+    let verbose = args.get_flag("verbose");
+
+    let adjustment = args
+        .get_one::<i16>("oom_score_adj")
+        .copied()
+        .expect("oom score adjustment is a required argument");
+
+    let f = |process: &Process| {
+        if verbose {
+            let pid = &process.pid;
+            let cmd = &process.stat()?.comm;
+            eprintln!("modifying process {pid} {cmd}");
+        }
+
+        process.set_oom_score_adj(adjustment)?;
+
+        Ok(())
     };
 
     modify_tree(args, f)

@@ -43,6 +43,7 @@ fn cmd_tree_modify() -> Command {
         .subcommand_required(true)
         .subcommand(cmd_modify_affinity())
         .subcommand(cmd_modify_nice())
+        .subcommand(cmd_modify_oom_score_adj())
 }
 
 fn cmd_tree_show() -> Command {
@@ -54,6 +55,8 @@ fn cmd_tree_show() -> Command {
         .subcommand(cmd_show_affinity())
         .subcommand(cmd_show_backtrace())
         .subcommand(cmd_show_nice())
+        .subcommand(cmd_show_oom_score())
+        .subcommand(cmd_show_oom_score_adj())
         .subcommand(cmd_show_plain())
 }
 
@@ -81,6 +84,16 @@ fn cmd_modify_nice() -> Command {
         .about("modify process tree nice values")
 }
 
+fn cmd_modify_oom_score_adj() -> Command {
+    Command::new("oom_score_adj")
+        .arg(arg_help())
+        .arg(arg_oom_score_adj())
+        .arg(arg_pid())
+        .arg(arg_threads())
+        .arg(arg_verbose())
+        .about("modify process tree oom score adjustment values")
+}
+
 fn cmd_show_affinity() -> Command {
     Command::new("affinity")
         .arg(arg_help())
@@ -106,6 +119,22 @@ fn cmd_show_nice() -> Command {
         .arg(arg_threads())
         .arg(arg_verbose())
         .about("show process tree with nice values")
+}
+
+fn cmd_show_oom_score() -> Command {
+    Command::new("oom_score")
+        .arg(arg_help())
+        .arg(arg_pid())
+        .arg(arg_threads())
+        .about("show process tree with oom score")
+}
+
+fn cmd_show_oom_score_adj() -> Command {
+    Command::new("oom_score_adj")
+        .arg(arg_help())
+        .arg(arg_pid())
+        .arg(arg_threads())
+        .about("show process tree with oom score adjustment")
 }
 
 fn cmd_show_plain() -> Command {
@@ -144,6 +173,14 @@ fn arg_niceness() -> Arg {
         .required(true)
         .action(ArgAction::Set)
         .value_parser(is_niceness)
+}
+
+fn arg_oom_score_adj() -> Arg {
+    Arg::new("oom_score_adj")
+        .help("oom score adjustment from -1000 to 1000 inclusively")
+        .required(true)
+        .action(ArgAction::Set)
+        .value_parser(is_oom_score_adj)
 }
 
 fn arg_pid() -> Arg {
@@ -207,6 +244,21 @@ fn is_niceness(s: &str) -> Result<i32, String> {
             } else {
                 Err(format!(
                     "not a niceness value between -20 and 19: {niceness}"
+                ))
+            }
+        },
+    )
+}
+
+fn is_oom_score_adj(s: &str) -> Result<i16, String> {
+    s.parse::<i16>().map_or_else(
+        |_| Err(format!("not an i16: {s:?}")),
+        |value| {
+            if (-1000..=1000).contains(&value) {
+                Ok(value)
+            } else {
+                Err(format!(
+                    "not an oom score adjustment value between -1000 and 1000: {value}"
                 ))
             }
         },
