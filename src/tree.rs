@@ -47,7 +47,6 @@ fn run_show(args: &ArgMatches) -> Result<()> {
 /// Runs `tree show plain` subcommand.
 fn run_show_plain(args: &ArgMatches) -> Result<()> {
     let arguments = args.get_flag("arguments");
-    let threads = args.get_flag("threads");
 
     let payload = |process: &Process| {
         let command = if arguments {
@@ -63,27 +62,11 @@ fn run_show_plain(args: &ArgMatches) -> Result<()> {
         ))
     };
 
-    if let Some(pids) = args.get_many("pid") {
-        for pid in pids {
-            let tree = ProcessTree::new(*pid, threads)?;
-            let tree = tree.to_termtree(&payload);
-            println!("{tree}");
-        }
-    } else {
-        for pid in piderator(io::stdin()) {
-            let tree = ProcessTree::new(pid, threads)?;
-            let tree = tree.to_termtree(&payload);
-            println!("{tree}");
-        }
-    }
-
-    Ok(())
+    print_tree(args, payload)
 }
 
 /// Runs `tree show affinity` subcommand.
 fn run_show_affinity(args: &ArgMatches) -> Result<()> {
-    let threads = args.get_flag("threads");
-
     let payload = |process: &Process| {
         let command = &process.stat()?.comm;
 
@@ -91,26 +74,11 @@ fn run_show_affinity(args: &ArgMatches) -> Result<()> {
             .map(|affinity| format!("{} {command} {affinity:?}", process.pid))
     };
 
-    if let Some(pids) = args.get_many("pid") {
-        for pid in pids {
-            let tree = ProcessTree::new(*pid, threads)?;
-            let tree = tree.to_termtree(&payload);
-            println!("{tree}");
-        }
-    } else {
-        for pid in piderator(io::stdin()) {
-            let tree = ProcessTree::new(pid, threads)?;
-            let tree = tree.to_termtree(&payload);
-            println!("{tree}");
-        }
-    }
-
-    Ok(())
+    print_tree(args, payload)
 }
 
 /// Runs `tree show backtrace` subcommand.
 fn run_show_backtrace(args: &ArgMatches) -> Result<()> {
-    let threads = args.get_flag("threads");
     let verbose = args.get_flag("verbose");
 
     let payload = |process: &Process| {
@@ -158,27 +126,11 @@ fn run_show_backtrace(args: &ArgMatches) -> Result<()> {
         }
     };
 
-    if let Some(pids) = args.get_many("pid") {
-        for pid in pids {
-            let tree = ProcessTree::new(*pid, threads)?;
-            let tree = tree.to_termtree(&payload);
-            println!("{tree}");
-        }
-    } else {
-        for pid in piderator(io::stdin()) {
-            let tree = ProcessTree::new(pid, threads)?;
-            let tree = tree.to_termtree(&payload);
-            println!("{tree}");
-        }
-    }
-
-    Ok(())
+    print_tree(args, payload)
 }
 
 /// Runs `tree show nice` subcommand.
 fn run_show_nice(args: &ArgMatches) -> Result<()> {
-    let threads = args.get_flag("threads");
-
     let payload = |process: &Process| {
         let command = &process.stat()?.comm;
         let pid = process.pid;
@@ -192,26 +144,11 @@ fn run_show_nice(args: &ArgMatches) -> Result<()> {
         )
     };
 
-    if let Some(pids) = args.get_many("pid") {
-        for pid in pids {
-            let tree = ProcessTree::new(*pid, threads)?;
-            let tree = tree.to_termtree(&payload);
-            println!("{tree}");
-        }
-    } else {
-        for pid in piderator(io::stdin()) {
-            let tree = ProcessTree::new(pid, threads)?;
-            let tree = tree.to_termtree(&payload);
-            println!("{tree}");
-        }
-    }
-
-    Ok(())
+    print_tree(args, payload)
 }
 
 /// Runs `tree modify affinity` subcommand.
 fn run_modify_affinity(args: &ArgMatches) -> Result<()> {
-    let threads = args.get_flag("threads");
     let verbose = args.get_flag("verbose");
 
     let cpuset: Vec<usize> = match args
@@ -233,24 +170,11 @@ fn run_modify_affinity(args: &ArgMatches) -> Result<()> {
         affinity::set(process.pid, &cpuset)
     };
 
-    if let Some(pids) = args.get_many("pid") {
-        for pid in pids {
-            let tree = ProcessTree::new(*pid, threads)?;
-            tree.modify(&f);
-        }
-    } else {
-        for pid in piderator(io::stdin()) {
-            let tree = ProcessTree::new(pid, threads)?;
-            tree.modify(&f);
-        }
-    }
-
-    Ok(())
+    modify_tree(args, f)
 }
 
 /// Runs `tree modify nice` subcommand.
 fn run_modify_nice(args: &ArgMatches) -> Result<()> {
-    let threads = args.get_flag("threads");
     let verbose = args.get_flag("verbose");
 
     let niceness = args
@@ -272,19 +196,7 @@ fn run_modify_nice(args: &ArgMatches) -> Result<()> {
         )
     };
 
-    if let Some(pids) = args.get_many("pid") {
-        for pid in pids {
-            let tree = ProcessTree::new(*pid, threads)?;
-            tree.modify(&f);
-        }
-    } else {
-        for pid in piderator(io::stdin()) {
-            let tree = ProcessTree::new(pid, threads)?;
-            tree.modify(&f);
-        }
-    }
-
-    Ok(())
+    modify_tree(args, f)
 }
 
 // ----------------------------------------------------------------------------
@@ -376,6 +288,53 @@ impl From<Process> for ProcessTree {
 // ----------------------------------------------------------------------------
 // tree recursion helpers
 // ----------------------------------------------------------------------------
+
+/// Modify process tree from arguments or STDIN with changes from `f`.
+fn modify_tree<F>(args: &ArgMatches, f: F) -> Result<()>
+where
+    F: Fn(&Process) -> Result<()>,
+{
+    let threads = args.get_flag("threads");
+
+    if let Some(pids) = args.get_many("pid") {
+        for pid in pids {
+            let tree = ProcessTree::new(*pid, threads)?;
+            tree.modify(&f);
+        }
+    } else {
+        for pid in piderator(io::stdin()) {
+            let tree = ProcessTree::new(pid, threads)?;
+            tree.modify(&f);
+        }
+    }
+
+    Ok(())
+}
+
+/// Print process tree from arguments or STDIN with content from payload
+/// function.
+fn print_tree<F>(args: &ArgMatches, payload: F) -> Result<()>
+where
+    F: Fn(&Process) -> Result<String>,
+{
+    let threads = args.get_flag("threads");
+
+    if let Some(pids) = args.get_many("pid") {
+        for pid in pids {
+            let tree = ProcessTree::new(*pid, threads)?;
+            let tree = tree.to_termtree(&payload);
+            println!("{tree}");
+        }
+    } else {
+        for pid in piderator(io::stdin()) {
+            let tree = ProcessTree::new(pid, threads)?;
+            let tree = tree.to_termtree(&payload);
+            println!("{tree}");
+        }
+    }
+
+    Ok(())
+}
 
 /// Recursively moves children from procs into tree.
 fn convert(procs: &mut HashMap<i32, Vec<Process>>, tree: &mut ProcessTree) {
