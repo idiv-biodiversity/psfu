@@ -25,12 +25,14 @@ Other show commands are:
 - **affinity**: show CPU affinity aka core binding
 - **backtrace**: show process/thread traces (using `gdb`, may require admin
   privileges)
+- **nice**: show niceness
 
 ### modify commands
 
 Modify commands are:
 
 - **affinity**: modify CPU affinity
+- **nice**: modify niceness
 
 ### tips
 
