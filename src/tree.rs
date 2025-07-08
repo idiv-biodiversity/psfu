@@ -217,7 +217,7 @@ fn run_modify_affinity(args: &ArgMatches) -> Result<()> {
     let cpuset: Vec<usize> = match args
         .get_one::<String>("cpuset")
         .map(String::as_str)
-        .unwrap()
+        .expect("cpuset is a required argument")
     {
         "free" => (0..libc::CPU_SETSIZE as usize).collect(),
         cpuset => vec![cpuset.parse().unwrap()],
@@ -253,7 +253,10 @@ fn run_modify_nice(args: &ArgMatches) -> Result<()> {
     let threads = args.get_flag("threads");
     let verbose = args.get_flag("verbose");
 
-    let niceness = args.get_one::<i32>("niceness").copied().unwrap_or(10);
+    let niceness = args
+        .get_one::<i32>("niceness")
+        .copied()
+        .expect("niceness is a required argument");
 
     let f = |process: &Process| {
         if verbose {
