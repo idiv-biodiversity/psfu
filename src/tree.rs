@@ -47,6 +47,10 @@ fn run_show(args: &ArgMatches) -> Result<()> {
     }
 }
 
+// ----------------------------------------------------------------------------
+// CLI show runner
+// ----------------------------------------------------------------------------
+
 /// Runs `tree show plain` subcommand.
 fn run_show_plain(args: &ArgMatches) -> Result<()> {
     let arguments = args.get_flag("arguments");
@@ -177,6 +181,10 @@ fn run_show_nice(args: &ArgMatches) -> Result<()> {
 
     print_tree(args, payload)
 }
+
+// ----------------------------------------------------------------------------
+// CLI modify runner
+// ----------------------------------------------------------------------------
 
 /// Runs `tree modify affinity` subcommand.
 fn run_modify_affinity(args: &ArgMatches) -> Result<()> {
