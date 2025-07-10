@@ -18,8 +18,8 @@ use crate::nice;
 /// Runs **tree** subcommand.
 pub fn run(args: &ArgMatches) -> Result<()> {
     match args.subcommand() {
-        Some(("show", args)) => run_show(args),
         Some(("modify", args)) => run_modify(args),
+        Some(("show", args)) => run_show(args),
         _ => unreachable!("{}", crate::cli::SUBCOMMAND_REQUIRED),
     }
 }
