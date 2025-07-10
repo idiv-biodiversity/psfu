@@ -53,21 +53,7 @@ fn run_show(args: &ArgMatches) -> Result<()> {
 
 /// Runs `tree show plain` subcommand.
 fn run_show_plain(args: &ArgMatches) -> Result<()> {
-    let arguments = args.get_flag("arguments");
-
-    let payload = |process: &Process| {
-        let command = if arguments {
-            process.cmdline().ok().map(|cmd| cmd.join(" "))
-        } else {
-            None
-        };
-
-        Ok(format!(
-            "{} {}",
-            process.pid,
-            command.as_ref().unwrap_or(&process.stat()?.comm)
-        ))
-    };
+    let payload = |_: &Process| Ok(String::new());
 
     print_tree(args, payload)
 }
@@ -75,10 +61,7 @@ fn run_show_plain(args: &ArgMatches) -> Result<()> {
 /// Runs `tree show affinity` subcommand.
 fn run_show_affinity(args: &ArgMatches) -> Result<()> {
     let payload = |process: &Process| {
-        let command = &process.stat()?.comm;
-
-        affinity::get(process.pid)
-            .map(|affinity| format!("{} {command} {affinity:?}", process.pid))
+        affinity::get(process.pid).map(|affinity| format!("{affinity:?}"))
     };
 
     print_tree(args, payload)
@@ -87,11 +70,9 @@ fn run_show_affinity(args: &ArgMatches) -> Result<()> {
 /// Runs `tree show oom_score` subcommand.
 fn run_show_oom_score(args: &ArgMatches) -> Result<()> {
     let payload = |process: &Process| {
-        let command = &process.stat()?.comm;
-
         process
             .oom_score()
-            .map(|value| format!("{} {command} {value}", process.pid))
+            .map(|value| format!("{value}"))
             .map_err(From::from)
     };
 
@@ -101,11 +82,9 @@ fn run_show_oom_score(args: &ArgMatches) -> Result<()> {
 /// Runs `tree show oom_score_adj` subcommand.
 fn run_show_oom_score_adj(args: &ArgMatches) -> Result<()> {
     let payload = |process: &Process| {
-        let command = &process.stat()?.comm;
-
         process
             .oom_score_adj()
-            .map(|value| format!("{} {command} {value}", process.pid))
+            .map(|value| format!("{value}"))
             .map_err(From::from)
     };
 
@@ -142,7 +121,7 @@ fn run_show_backtrace(args: &ArgMatches) -> Result<()> {
                             continue;
                         }
 
-                        payload.push(format!("{pid} {comm} {line}"));
+                        payload.push(line);
                     }
 
                     Ok(payload.join("\n"))
@@ -167,15 +146,12 @@ fn run_show_backtrace(args: &ArgMatches) -> Result<()> {
 /// Runs `tree show nice` subcommand.
 fn run_show_nice(args: &ArgMatches) -> Result<()> {
     let payload = |process: &Process| {
-        let command = &process.stat()?.comm;
         let pid = process.pid;
 
         // need to convert into u32 as required by libc::getpriority
         pid.try_into().map_or_else(
             |_| Ok(format!("invalid process id: {pid}")),
-            |pid| {
-                nice::get(pid).map(|value| format!("{pid} {command} {value}"))
-            },
+            |pid| nice::get(pid).map(|value| format!("{value}")),
         )
     };
 
@@ -380,6 +356,28 @@ fn print_tree<F>(args: &ArgMatches, payload: F) -> Result<()>
 where
     F: Fn(&Process) -> Result<String>,
 {
+    let arguments = args.get_flag("arguments");
+
+    let payload = |process: &Process| {
+        let comm = &process.stat()?.comm;
+        let pid = process.pid;
+
+        let command = if arguments {
+            process.cmdline().ok().map(|cmd| cmd.join(" "))
+        } else {
+            None
+        };
+        let command = command.as_ref().unwrap_or(comm);
+
+        let mut output = vec![];
+
+        for line in payload(process)?.lines() {
+            output.push(format!("{pid} {command} {line}"));
+        }
+
+        Ok(output.join("\n"))
+    };
+
     let threads = args.get_flag("threads");
 
     if let Some(pids) = args.get_many("pid") {

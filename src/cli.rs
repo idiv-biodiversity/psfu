@@ -98,6 +98,7 @@ fn cmd_show_affinity() -> Command {
     Command::new("affinity")
         .arg(arg_help())
         .arg(arg_pid())
+        .arg(arg_show_arguments())
         .arg(arg_threads())
         .about("show process tree with affinity (cpuset)")
 }
@@ -107,6 +108,7 @@ fn cmd_show_backtrace() -> Command {
         .alias("bt")
         .arg(arg_help())
         .arg(arg_pid())
+        .arg(arg_show_arguments())
         .arg(arg_threads())
         .arg(arg_verbose())
         .about("show process tree with backtrace")
@@ -116,6 +118,7 @@ fn cmd_show_nice() -> Command {
     Command::new("nice")
         .arg(arg_help())
         .arg(arg_pid())
+        .arg(arg_show_arguments())
         .arg(arg_threads())
         .arg(arg_verbose())
         .about("show process tree with nice values")
@@ -125,6 +128,7 @@ fn cmd_show_oom_score() -> Command {
     Command::new("oom_score")
         .arg(arg_help())
         .arg(arg_pid())
+        .arg(arg_show_arguments())
         .arg(arg_threads())
         .about("show process tree with oom score")
 }
@@ -133,6 +137,7 @@ fn cmd_show_oom_score_adj() -> Command {
     Command::new("oom_score_adj")
         .arg(arg_help())
         .arg(arg_pid())
+        .arg(arg_show_arguments())
         .arg(arg_threads())
         .about("show process tree with oom score adjustment")
 }
