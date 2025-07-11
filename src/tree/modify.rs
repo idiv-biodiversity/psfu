@@ -103,10 +103,8 @@ fn modify_tree<F>(args: &ArgMatches, f: F) -> Result<()>
 where
     F: Fn(&Process) -> Result<()>,
 {
-    let threads = args.get_flag("threads");
-
     for pid in piderator::args_or_stdin(args) {
-        let tree = ProcessTree::new(pid, threads)?;
+        let tree = ProcessTree::new(pid, true)?;
         tree.modify(&f);
     }
 

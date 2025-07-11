@@ -69,7 +69,6 @@ fn cmd_modify_affinity() -> Command {
         .arg(arg_cpuset())
         .arg(arg_help())
         .arg(arg_pid())
-        .arg(arg_threads())
         .arg(arg_verbose())
         .about("modify process tree affinity (cpuset)")
 }
@@ -79,7 +78,6 @@ fn cmd_modify_nice() -> Command {
         .arg(arg_help())
         .arg(arg_niceness())
         .arg(arg_pid())
-        .arg(arg_threads())
         .arg(arg_verbose())
         .about("modify process tree nice values")
 }
@@ -89,7 +87,6 @@ fn cmd_modify_oom_score_adj() -> Command {
         .arg(arg_help())
         .arg(arg_oom_score_adj())
         .arg(arg_pid())
-        .arg(arg_threads())
         .arg(arg_verbose())
         .about("modify process tree oom score adjustment values")
 }
