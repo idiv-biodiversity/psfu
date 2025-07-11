@@ -6,6 +6,7 @@ mod log;
 mod nice;
 mod pid;
 mod tree;
+mod util;
 
 use anyhow::Result;
 
