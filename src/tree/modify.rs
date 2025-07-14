@@ -30,7 +30,7 @@ fn run_affinity(args: &ArgMatches) -> Result<()> {
         cpuset => vec![cpuset.parse().unwrap()],
     };
 
-    let f = |process: &Process| {
+    let f = |process: Process| {
         if verbose {
             let pid = &process.pid;
             let cmd = &process.stat()?.comm;
@@ -52,7 +52,7 @@ fn run_nice(args: &ArgMatches) -> Result<()> {
         .copied()
         .expect("niceness is a required argument");
 
-    let f = |process: &Process| {
+    let f = |process: Process| {
         if verbose {
             let pid = &process.pid;
             let cmd = &process.stat()?.comm;
@@ -78,7 +78,7 @@ fn run_oom_score_adj(args: &ArgMatches) -> Result<()> {
         .copied()
         .expect("oom score adjustment is a required argument");
 
-    let f = |process: &Process| {
+    let f = |process: Process| {
         if verbose {
             let pid = &process.pid;
             let cmd = &process.stat()?.comm;
@@ -100,7 +100,7 @@ fn run_oom_score_adj(args: &ArgMatches) -> Result<()> {
 /// Modify process tree from arguments or STDIN with changes from `f`.
 fn modify_tree<F>(args: &ArgMatches, f: F) -> Result<()>
 where
-    F: Fn(&Process) -> Result<()>,
+    F: Fn(Process) -> Result<()>,
 {
     for pid in piderator::args_or_stdin(args) {
         let tree = ProcessTree::new(pid, Threads(true))?;

@@ -7,6 +7,7 @@ use procfs::process::Process;
 use crate::affinity;
 use crate::nice;
 use crate::tree::{ProcessTree, Threads};
+use crate::util::pid::ProcessID;
 use crate::util::piderator;
 
 /// Runs `tree show` subcommand.
@@ -24,7 +25,7 @@ pub fn run(args: &ArgMatches) -> Result<()> {
 
 /// Runs `tree show affinity` subcommand.
 fn run_affinity(args: &ArgMatches) -> Result<()> {
-    let payload = |process: &Process| {
+    let payload = |process: Process| {
         affinity::get(process.pid).map(|affinity| format!("{affinity:?}"))
     };
 
@@ -35,7 +36,7 @@ fn run_affinity(args: &ArgMatches) -> Result<()> {
 fn run_backtrace(args: &ArgMatches) -> Result<()> {
     let verbose = args.get_flag("verbose");
 
-    let payload = |process: &Process| {
+    let payload = |process: Process| {
         let pid = process.pid;
         let comm = &process.stat()?.comm;
 
@@ -85,7 +86,7 @@ fn run_backtrace(args: &ArgMatches) -> Result<()> {
 
 /// Runs `tree show nice` subcommand.
 fn run_nice(args: &ArgMatches) -> Result<()> {
-    let payload = |process: &Process| {
+    let payload = |process: Process| {
         let pid = process.pid;
 
         // need to convert into u32 as required by libc::getpriority
@@ -100,7 +101,7 @@ fn run_nice(args: &ArgMatches) -> Result<()> {
 
 /// Runs `tree show oom_score` subcommand.
 fn run_oom_score(args: &ArgMatches) -> Result<()> {
-    let payload = |process: &Process| {
+    let payload = |process: Process| {
         process
             .oom_score()
             .map(|value| format!("{value}"))
@@ -112,7 +113,7 @@ fn run_oom_score(args: &ArgMatches) -> Result<()> {
 
 /// Runs `tree show oom_score_adj` subcommand.
 fn run_oom_score_adj(args: &ArgMatches) -> Result<()> {
-    let payload = |process: &Process| {
+    let payload = |process: Process| {
         process
             .oom_score_adj()
             .map(|value| format!("{value}"))
@@ -124,7 +125,7 @@ fn run_oom_score_adj(args: &ArgMatches) -> Result<()> {
 
 /// Runs `tree show plain` subcommand.
 fn run_plain(args: &ArgMatches) -> Result<()> {
-    let payload = |_: &Process| Ok(String::new());
+    let payload = |_: Process| Ok(String::new());
 
     print_tree(args, payload)
 }
@@ -137,13 +138,14 @@ fn run_plain(args: &ArgMatches) -> Result<()> {
 /// function.
 fn print_tree<F>(args: &ArgMatches, payload: F) -> Result<()>
 where
-    F: Fn(&Process) -> Result<String>,
+    F: Fn(Process) -> Result<String>,
 {
     let arguments = args.get_flag("arguments");
 
-    let payload = |process: &Process| {
+    let payload = |pid: ProcessID| {
+        let pid = pid.0;
+        let process = Process::new(pid)?;
         let comm = &process.stat()?.comm;
-        let pid = process.pid;
 
         let command = if arguments {
             process.cmdline().ok().map(|cmd| cmd.join(" "))

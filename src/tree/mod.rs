@@ -9,6 +9,7 @@ use procfs::process::Process;
 use termtree::Tree;
 
 use crate::log;
+use crate::util::pid::ProcessID;
 
 // ----------------------------------------------------------------------------
 // CLI runner
@@ -34,7 +35,7 @@ struct Threads(bool);
 #[derive(Debug)]
 struct ProcessTree {
     /// The root process of this tree.
-    root: Process,
+    root: ProcessID,
 
     /// The children of this tree.
     children: Vec<ProcessTree>,
@@ -43,21 +44,21 @@ struct ProcessTree {
 impl ProcessTree {
     /// Returns a new process tree with parent `pid` as its root.
     fn new(pid: i32, threads: Threads) -> Result<Self> {
-        let root = Process::new(pid)
-            .with_context(|| format!("reading process {pid} failed"))?;
+        let root = ProcessID(pid);
 
         let mut tree = Self::from(root);
 
-        let mut procs: HashMap<i32, Vec<Process>> = HashMap::new();
+        let mut procs: HashMap<ProcessID, Vec<ProcessID>> = HashMap::new();
 
         for process in procfs::process::all_processes()
             .context("reading all processes failed")?
         {
             let process = process?;
 
-            let children = procs.entry(process.stat()?.ppid).or_default();
+            let children =
+                procs.entry(ProcessID(process.stat()?.ppid)).or_default();
 
-            children.push(process);
+            children.push(ProcessID(process.pid));
         }
 
         tree.convert(&mut procs);
@@ -73,9 +74,9 @@ impl ProcessTree {
     /// Recursively modify the process tree.
     fn modify<F>(&self, f: &F)
     where
-        F: Fn(&Process) -> Result<()>,
+        F: Fn(Process) -> Result<()>,
     {
-        if let Err(e) = f(&self.root) {
+        if let Err(e) = self.root.into_process().and_then(f) {
             log::error(format!("{e}"));
         }
 
@@ -91,12 +92,12 @@ impl ProcessTree {
             child.add_threads().with_context(|| {
                 format!(
                     "adding threads for child process {} failed",
-                    child.root.pid
+                    child.root.0
                 )
             })?;
         }
 
-        let path = format!("/proc/{}/task", self.root.pid);
+        let path = format!("/proc/{}/task", self.root.0);
 
         if let Ok(entries) = std::fs::read_dir(path) {
             for tid in entries {
@@ -107,12 +108,8 @@ impl ProcessTree {
                     .parse::<i32>()
                     .unwrap();
 
-                if tid != self.root.pid {
-                    let task = Process::new(tid).with_context(|| {
-                        format!("reading thread {tid} failed")
-                    })?;
-
-                    let task = Self::from(task);
+                if tid != self.root.0 {
+                    let task = Self::from(ProcessID(tid));
 
                     self.children.push(task);
                 }
@@ -123,8 +120,8 @@ impl ProcessTree {
     }
 
     /// Recursively moves children from procs into tree.
-    fn convert(&mut self, procs: &mut HashMap<i32, Vec<Process>>) {
-        if let Some(children) = procs.remove(&self.root.pid) {
+    fn convert(&mut self, procs: &mut HashMap<ProcessID, Vec<ProcessID>>) {
+        if let Some(children) = procs.remove(&self.root) {
             self.children = children.into_iter().map(Self::from).collect();
 
             for child in &mut self.children {
@@ -135,9 +132,9 @@ impl ProcessTree {
 
     fn to_termtree<F>(&self, payload: &F) -> Tree<String>
     where
-        F: Fn(&Process) -> Result<String>,
+        F: Fn(ProcessID) -> Result<String>,
     {
-        let p = match payload(&self.root) {
+        let p = match payload(self.root) {
             Ok(payload) => payload,
             Err(e) => format!("{e}"),
         };
@@ -153,10 +150,10 @@ impl ProcessTree {
     }
 }
 
-impl From<Process> for ProcessTree {
-    fn from(process: Process) -> Self {
+impl From<ProcessID> for ProcessTree {
+    fn from(root: ProcessID) -> Self {
         Self {
-            root: process,
+            root,
             children: vec![],
         }
     }
