@@ -6,9 +6,8 @@ use procfs::process::Process;
 
 use crate::affinity;
 use crate::nice;
+use crate::tree::{ProcessTree, Threads};
 use crate::util::piderator;
-
-use super::ProcessTree;
 
 /// Runs `tree show` subcommand.
 pub fn run(args: &ArgMatches) -> Result<()> {
@@ -171,7 +170,7 @@ where
     let threads = args.get_flag("threads");
 
     for pid in piderator::args_or_stdin(args) {
-        let tree = ProcessTree::new(pid, threads)?;
+        let tree = ProcessTree::new(pid, Threads(threads))?;
         let tree = tree.to_termtree(&payload);
         println!("{tree}");
     }

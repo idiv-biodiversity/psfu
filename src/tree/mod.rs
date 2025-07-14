@@ -27,6 +27,9 @@ pub fn run(args: &ArgMatches) -> Result<()> {
 // process tree data structure
 // ----------------------------------------------------------------------------
 
+#[derive(Clone, Copy)]
+struct Threads(bool);
+
 /// A process tree.
 #[derive(Debug)]
 struct ProcessTree {
@@ -39,7 +42,7 @@ struct ProcessTree {
 
 impl ProcessTree {
     /// Returns a new process tree with parent `pid` as its root.
-    fn new(pid: i32, threads: bool) -> Result<Self> {
+    fn new(pid: i32, threads: Threads) -> Result<Self> {
         let root = Process::new(pid)
             .with_context(|| format!("reading process {pid} failed"))?;
 
@@ -59,7 +62,7 @@ impl ProcessTree {
 
         tree.convert(&mut procs);
 
-        if threads {
+        if threads.0 {
             tree.add_threads()
                 .context("adding threads to tree failed")?;
         }
