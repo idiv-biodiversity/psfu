@@ -17,7 +17,7 @@ rust-version = "1.85"
 anyhow = "1"
 errno = "0.3"
 libc = "0.2"
-procfs = "0.17"
+procfs = "0.18"
 termtree = "0.5"
 
 [dependencies.clap]
@@ -31,7 +31,7 @@ predicates = "3"
 [build-dependencies]
 clap = { version = "4", features = ["cargo"] }
 clap_complete = "4"
-procfs = "0.17"
+procfs = "0.18"
 
 [profile.release]
 lto = true
