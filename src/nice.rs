@@ -13,7 +13,7 @@ pub fn get(pid: u32) -> Result<i32> {
     let err = errno::errno();
 
     if nice == -1 && err != Errno(0) {
-        return Err(anyhow!("libc::getpriority: {}", err));
+        return Err(anyhow!("libc::getpriority: {err}"));
     }
 
     Ok(nice)
@@ -29,7 +29,7 @@ pub fn set(pid: u32, niceness: i32) -> Result<()> {
     let err = errno::errno();
 
     if nice == -1 && err != Errno(0) {
-        return Err(anyhow!("for pid {pid} libc::setpriority: {}", err));
+        return Err(anyhow!("for pid {pid} libc::setpriority: {err}"));
     }
 
     Ok(())

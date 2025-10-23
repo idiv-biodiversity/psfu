@@ -71,12 +71,12 @@ fn run_backtrace(args: &ArgMatches) -> Result<()> {
                         .lines()
                         .fold(String::default(), |acc, line| acc + " " + line);
 
-                    Err(anyhow!("{} {} {}", pid, comm, error))
+                    Err(anyhow!("{pid} {comm} {error}"))
                 }
             }
 
             Err(error) => {
-                Err(anyhow!("{} {} failed to run gdb: {}", pid, comm, error))
+                Err(anyhow!("{pid} {comm} failed to run gdb: {error}"))
             }
         }
     };
