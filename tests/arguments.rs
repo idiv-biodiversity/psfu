@@ -2,7 +2,6 @@ mod util;
 
 use std::error::Error;
 
-use assert_cmd::prelude::*;
 use predicates::prelude::*;
 
 #[test]
