@@ -38,7 +38,7 @@ struct ProcessTree {
     root: ProcessID,
 
     /// The children of this tree.
-    children: Vec<ProcessTree>,
+    children: Vec<Self>,
 }
 
 impl ProcessTree {
