@@ -6,7 +6,6 @@ description = "process fu"
 license = "GPL-3.0-or-later"
 readme = "README.md"
 documentation = "https://github.com/idiv-biodiversity/psfu"
-homepage = "https://github.com/idiv-biodiversity/psfu"
 repository = "https://github.com/idiv-biodiversity/psfu"
 keywords = ["process"]
 categories = ["command-line-utilities"]
